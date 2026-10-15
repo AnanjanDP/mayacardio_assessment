@@ -3,8 +3,7 @@ Peak detection and heart rate calculations for Never Lose a Heartbeat.
 Strictly implements the 4-rule peak detection and 5-second lookback specification.
 """
 
-import math
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 SAMPLE_RATE = 400
 
