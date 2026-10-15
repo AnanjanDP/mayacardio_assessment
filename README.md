@@ -1,14 +1,4 @@
-# Never Lose a Heartbeat
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests: 42 Passed](https://img.shields.io/badge/tests-42%20passed-brightgreen.svg)]()
-[![Platform: Linux ARM64 / Raspberry Pi 4](https://img.shields.io/badge/platform-Linux%20ARM64%20|%20RPi%204-red.svg)]()
-
-> **Fault-Tolerant Biosignal Data Pipeline on Raspberry Pi and Free Cloud Infrastructure.**  
-> High-reliability edge collection, transactional SQLite durability, automatic online/offline mode switching, idempotent cloud synchronization, and exact heart rate analytics.
-
----
 
 ## Architecture Diagram
 
