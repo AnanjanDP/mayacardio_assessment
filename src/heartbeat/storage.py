@@ -8,7 +8,7 @@ import json
 import logging
 import os
 import sqlite3
-from typing import Any, Dict, Generator, List, Optional, Tuple
+from typing import Generator, List, Optional, Tuple
 
 from heartbeat.protocol import LossItem
 
@@ -65,9 +65,6 @@ class DeviceStorage:
                         created_at TEXT NOT NULL,
                         PRIMARY KEY (session_id, sensor, sample_index)
                     );
-
-                    CREATE INDEX IF NOT EXISTS idx_samples_lookup 
-                    ON samples (session_id, sensor, sample_index);
 
                     CREATE TABLE IF NOT EXISTS loss_records (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
