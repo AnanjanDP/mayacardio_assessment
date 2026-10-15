@@ -2,9 +2,11 @@
 Configuration management for Never Lose a Heartbeat edge pipeline and cloud services.
 """
 
+import logging
 import os
 from dataclasses import dataclass
-from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 def _load_env_file():
@@ -21,8 +23,8 @@ def _load_env_file():
                     v = v.strip().strip("'\"")
                     if k not in os.environ:
                         os.environ[k] = v
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed reading .env file: %s", e)
 
 
 _load_env_file()
@@ -56,10 +58,3 @@ class PipelineConfig:
     # Logging
     log_level: str = os.getenv("PIPELINE_LOG_LEVEL", "INFO")
 
-
-@dataclass
-class CloudConfig:
-    db_url: str = os.getenv("CLOUD_DB_URL", "sqlite:///data/cloud.db")
-    host: str = os.getenv("CLOUD_HOST", "0.0.0.0")
-    port: int = int(os.getenv("CLOUD_PORT", "8000"))
-    worker_interval: float = float(os.getenv("CLOUD_WORKER_INTERVAL", "0.5"))
