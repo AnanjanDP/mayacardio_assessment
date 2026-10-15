@@ -317,13 +317,3 @@ Run the master acceptance evaluation script that runs the test suite, crash test
 ```bash
 python scripts/verify_all.py
 ```
-
----
-
-## Deliverables & Documentation
-
-- **Two-Page Design Note:** [docs/design-note.md](docs/design-note.md)
-- **Test Results & Resource Report:** [docs/test-results.md](docs/test-results.md)
-- **5-Minute Video Walkthrough Script:** [docs/demo-script.md](docs/demo-script.md)
-- **Raspberry Pi systemd Services:** [systemd/README.md](systemd/README.md)
-- **AI Tooling Disclosure:** [docs/test-results.md#5-ai-tooling-disclosure](docs/test-results.md#5-ai-tooling-disclosure)
