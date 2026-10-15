@@ -18,16 +18,10 @@ import time
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
-import uvicorn
-from heartbeat.cloud_client import CloudClient
-from heartbeat.storage import DeviceStorage
-from mock.check_ground_truth import check_export
-
-
 def main():
-    
-    print("SIMULATING NETWORK OUTAGE & AUTOMATIC MODE RECOVERY ")
-    
+    print("=================================================================")
+    print("  SIMULATING NETWORK OUTAGE & AUTOMATIC MODE RECOVERY            ")
+    print("=================================================================")
 
     temp_dir = tempfile.mkdtemp(prefix="outage_sim_")
     dev_db = os.path.join(temp_dir, "device.db")
