@@ -134,6 +134,15 @@ def test_query_placeholder_conversion():
     q_sqlite_keep = CloudStorage._format_sql(q_sqlite, is_sqlite=True)
     assert q_sqlite_keep == q_sqlite
 
+    # Test instance helper _q
+    mock_sqlite = CloudStorage.__new__(CloudStorage)
+    mock_sqlite.is_sqlite = True
+    assert mock_sqlite._q(q_sqlite) == q_sqlite
+
+    mock_pg = CloudStorage.__new__(CloudStorage)
+    mock_pg.is_sqlite = False
+    assert mock_pg._q(q_sqlite) == q_pg
+
 
 def test_row_helper_access():
     """Validates row value extraction helper across tuple, dict, and Row types."""

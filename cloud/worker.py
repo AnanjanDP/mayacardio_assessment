@@ -79,7 +79,7 @@ class CloudWorker:
             cur = conn.cursor()
 
             # Determine maximum sample index available
-            q_max = self.storage._format_sql("SELECT MAX(sample_index) FROM cloud_samples WHERE session_id = ?", self.storage.is_sqlite)
+            q_max = self.storage._q("SELECT MAX(sample_index) FROM cloud_samples WHERE session_id = ?")
             cur.execute(q_max, (session_id,))
             max_row = cur.fetchone()
             if not max_row or max_row[0] is None:
@@ -89,7 +89,7 @@ class CloudWorker:
             max_window = (max_idx + 1) // WINDOW_SIZE
 
             # Fetch set of already processed online windows
-            q_proc = self.storage._format_sql("SELECT window_index FROM cloud_processed_windows WHERE session_id = ? AND mode = 'online'", self.storage.is_sqlite)
+            q_proc = self.storage._q("SELECT window_index FROM cloud_processed_windows WHERE session_id = ? AND mode = 'online'")
             cur.execute(q_proc, (session_id,))
             processed: Set[int] = {self.storage._row_val(r, 0, "window_index") for r in cur.fetchall()}
 
@@ -97,17 +97,14 @@ class CloudWorker:
             if not windows_to_process:
                 return 0
 
-            q_s1 = self.storage._format_sql(
-                "SELECT sample_index, val0, val1, val2 FROM cloud_samples WHERE session_id = ? AND sensor = 1 AND sample_index BETWEEN ? AND ?",
-                self.storage.is_sqlite,
+            q_s1 = self.storage._q(
+                "SELECT sample_index, val0, val1, val2 FROM cloud_samples WHERE session_id = ? AND sensor = 1 AND sample_index BETWEEN ? AND ?"
             )
-            q_s2 = self.storage._format_sql(
-                "SELECT sample_index, val0, val1 FROM cloud_samples WHERE session_id = ? AND sensor = 2 AND sample_index BETWEEN ? AND ?",
-                self.storage.is_sqlite,
+            q_s2 = self.storage._q(
+                "SELECT sample_index, val0, val1 FROM cloud_samples WHERE session_id = ? AND sensor = 2 AND sample_index BETWEEN ? AND ?"
             )
-            q_hr = self.storage._format_sql(
-                "SELECT sample_index, val1 FROM cloud_samples WHERE session_id = ? AND sensor = 1 AND sample_index BETWEEN ? AND ?",
-                self.storage.is_sqlite,
+            q_hr = self.storage._q(
+                "SELECT sample_index, val1 FROM cloud_samples WHERE session_id = ? AND sensor = 1 AND sample_index BETWEEN ? AND ?"
             )
 
             processed_count = 0

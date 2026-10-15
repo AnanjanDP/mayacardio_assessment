@@ -94,6 +94,10 @@ class CloudStorage:
         """Converts standard ? parameter placeholders to %s for PostgreSQL."""
         return sql if is_sqlite else sql.replace("?", "%s")
 
+    def _q(self, sql: str) -> str:
+        """Converts standard ? parameter placeholders to %s when using PostgreSQL."""
+        return self._format_sql(sql, self.is_sqlite)
+
     @classmethod
     def get_ddl(cls, is_sqlite: bool) -> str:
         """Generates dialect-accurate DDL from a single unified schema template."""
@@ -234,6 +238,69 @@ class CloudStorage:
         finally:
             conn.close()
 
+    def persist_result(
+        self,
+        session_id: str,
+        window_index: int,
+        mode: str,
+        result: dict,
+        conn=None,
+    ):
+        """Persists a window processing result in cloud storage idempotently."""
+        now_str = datetime.datetime.utcnow().isoformat()
+        close_conn = False
+        if conn is None:
+            conn = self.get_connection()
+            close_conn = True
+
+        try:
+            missing_1 = result["missing_1"]
+            missing_2 = result["missing_2"]
+            complete = 1 if result["complete"] else 0
+            channels_json = json.dumps(result["channels"])
+            magnitude = result["magnitude"]
+            heart_rate = result["heart_rate"]
+
+            if self.is_sqlite:
+                with conn:
+                    conn.execute(
+                        """INSERT OR REPLACE INTO cloud_processing_results 
+                           (session_id, window_index, mode, missing_1, missing_2, complete, channels_json, magnitude, heart_rate, processed_at)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (session_id, window_index, mode, missing_1, missing_2, complete, channels_json, magnitude, heart_rate, now_str),
+                    )
+                    conn.execute(
+                        """INSERT OR IGNORE INTO cloud_processed_windows (session_id, window_index, mode)
+                           VALUES (?, ?, ?)""",
+                        (session_id, window_index, mode),
+                    )
+            else:
+                with conn:
+                    with conn.cursor() as ins_cur:
+                        ins_cur.execute(
+                            """INSERT INTO cloud_processing_results 
+                               (session_id, window_index, mode, missing_1, missing_2, complete, channels_json, magnitude, heart_rate, processed_at)
+                               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                               ON CONFLICT (session_id, window_index, mode) DO UPDATE SET
+                               missing_1 = EXCLUDED.missing_1,
+                               missing_2 = EXCLUDED.missing_2,
+                               complete = EXCLUDED.complete,
+                               channels_json = EXCLUDED.channels_json,
+                               magnitude = EXCLUDED.magnitude,
+                               heart_rate = EXCLUDED.heart_rate,
+                               processed_at = EXCLUDED.processed_at""",
+                            (session_id, window_index, mode, missing_1, missing_2, complete, channels_json, magnitude, heart_rate, now_str),
+                        )
+                        ins_cur.execute(
+                            """INSERT INTO cloud_processed_windows (session_id, window_index, mode)
+                               VALUES (%s, %s, %s)
+                               ON CONFLICT DO NOTHING""",
+                            (session_id, window_index, mode),
+                        )
+        finally:
+            if close_conn:
+                conn.close()
+
     def _stream_query(
         self,
         sql: str,
@@ -242,7 +309,7 @@ class CloudStorage:
         chunk_size: int = 1000,
     ) -> Generator[str, None, None]:
         """Generic memory-bounded streaming helper across database dialects."""
-        formatted_sql = self._format_sql(sql, self.is_sqlite)
+        formatted_sql = self._q(sql)
         conn = self.get_connection()
         try:
             cur = conn.cursor()
