@@ -2,7 +2,6 @@
 Unit tests for peak detection and heart rate calculations according to Section 5.5 rules.
 """
 
-import pytest
 from heartbeat.peaks import calculate_heart_rate, detect_peaks_in_interval
 
 

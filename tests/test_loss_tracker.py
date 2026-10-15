@@ -2,10 +2,8 @@
 Unit tests for LossTracker: gaps, explicit losses, and mock restarts.
 """
 
-import pytest
 from heartbeat.loss_tracker import LossTracker
 from heartbeat.protocol import LossItem
-from heartbeat.storage import DeviceStorage
 
 
 def test_gap_detection(device_storage):

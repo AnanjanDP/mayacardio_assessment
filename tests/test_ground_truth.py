@@ -5,7 +5,6 @@ Integration tests for ground truth verification with ramp mode and check_ground_
 import os
 import threading
 import time
-import pytest
 
 from heartbeat.collector import SensorCollector
 from heartbeat.config import PipelineConfig

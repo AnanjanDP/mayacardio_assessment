@@ -3,9 +3,7 @@ Unit tests for DeviceStorage durability, transactions, idempotency, and cursors.
 """
 
 import json
-import pytest
 from heartbeat.protocol import LossItem
-from heartbeat.storage import DeviceStorage
 
 
 def test_persist_batch_and_cursor(device_storage):

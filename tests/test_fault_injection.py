@@ -9,7 +9,6 @@ Integration and fault injection tests:
 import os
 import threading
 import time
-import pytest
 
 from heartbeat.collector import SensorCollector
 from heartbeat.config import PipelineConfig

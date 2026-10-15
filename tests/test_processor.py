@@ -2,8 +2,6 @@
 Unit tests for shared processing engine: window boundaries, stats, magnitude, completeness.
 """
 
-import math
-import pytest
 from heartbeat.processor import (
     compute_channel_stats,
     compute_sensor2_magnitude,

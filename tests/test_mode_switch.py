@@ -3,7 +3,6 @@ Unit tests for ModeManager and online/offline switching SLAs.
 """
 
 import time
-import pytest
 from heartbeat.connectivity import ModeManager
 
 

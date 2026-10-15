@@ -4,12 +4,10 @@ Unit tests for protocol parser, framing, and CRC32 validation.
 
 import json
 import zlib
-import pytest
 from heartbeat.protocol import (
     calculate_crc32,
     extract_data_substring,
     parse_response,
-    validate_crc32,
 )
 
 

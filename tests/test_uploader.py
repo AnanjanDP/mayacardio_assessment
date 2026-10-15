@@ -2,9 +2,6 @@
 Unit tests for BacklogUploader synchronization and cursor progression.
 """
 
-import pytest
-from heartbeat.protocol import LossItem
-from heartbeat.storage import DeviceStorage
 from heartbeat.uploader import BacklogUploader
 
 

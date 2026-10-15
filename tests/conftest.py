@@ -7,7 +7,6 @@ import shutil
 import tempfile
 import pytest
 
-from heartbeat.config import PipelineConfig
 from heartbeat.storage import DeviceStorage
 from cloud.storage import CloudStorage
 
