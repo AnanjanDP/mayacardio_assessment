@@ -5,6 +5,7 @@ Outputs strict JSON lines without corrupting diagnostic text.
 """
 
 import argparse
+import itertools
 import json
 import logging
 import sys
@@ -29,6 +30,23 @@ def configure_logging(level_name: str = "WARNING"):
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         stream=sys.stderr,
     )
+
+
+def _emit(lines) -> None:
+    """Write each line to stdout as JSON Lines, then flush once."""
+    for line in lines:
+        sys.stdout.write(line + "\n")
+    sys.stdout.flush()
+
+
+def _resolve_session(storage, session_id: str) -> str:
+    """Maps 'latest'/'last'/'current' to the most recent session; exits 1 if none."""
+    if session_id.lower() in ("latest", "last", "current"):
+        session_id = storage.get_latest_session_id()
+        if not session_id:
+            sys.stderr.write("No session found in database.\n")
+            sys.exit(1)
+    return session_id
 
 
 def cmd_status(args, config: PipelineConfig):
