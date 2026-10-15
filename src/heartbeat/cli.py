@@ -75,8 +75,7 @@ def cmd_status(args, config: PipelineConfig):
         "backlog": backlog,
         "session_id": storage.get_latest_session_id(),
     }
-    sys.stdout.write(json.dumps(status_obj) + "\n")
-    sys.stdout.flush()
+    _emit([json.dumps(status_obj)])
 
 
 def cmd_sessions(args, config: PipelineConfig):
@@ -88,9 +87,7 @@ def cmd_sessions(args, config: PipelineConfig):
     if not sessions:
         sys.stderr.write("No sessions found in database.\n")
         return
-    for s in sessions:
-        sys.stdout.write(json.dumps(s) + "\n")
-    sys.stdout.flush()
+    _emit(json.dumps(s) for s in sessions)
 
 
 def cmd_export(args, config: PipelineConfig):
@@ -98,21 +95,12 @@ def cmd_export(args, config: PipelineConfig):
     Exports samples and loss records as JSON lines from device or cloud.
     """
     storage = DeviceStorage(db_path=config.db_path)
-    session_id = args.session
-    if session_id.lower() in ("latest", "last", "current"):
-        session_id = storage.get_latest_session_id()
-        if not session_id:
-            sys.stderr.write("No session found in database.\n")
-            sys.exit(1)
+    session_id = _resolve_session(storage, args.session)
 
     from_source = getattr(args, "from")
 
     if from_source == "device":
-        for line in storage.export_session_samples(session_id):
-            sys.stdout.write(line + "\n")
-        for line in storage.export_session_losses(session_id):
-            sys.stdout.write(line + "\n")
-        sys.stdout.flush()
+        _emit(itertools.chain(storage.export_session_samples(session_id), storage.export_session_losses(session_id)))
     elif from_source == "cloud":
         cloud_client = CloudClient(base_url=config.cloud_url)
         try:
@@ -132,12 +120,7 @@ def cmd_results(args, config: PipelineConfig):
     Prints processing results for the given session.
     """
     storage = DeviceStorage(db_path=config.db_path)
-    session_id = args.session
-    if session_id.lower() in ("latest", "last", "current"):
-        session_id = storage.get_latest_session_id()
-        if not session_id:
-            sys.stderr.write("No session found in database.\n")
-            sys.exit(1)
+    session_id = _resolve_session(storage, args.session)
 
     cloud_client = CloudClient(base_url=config.cloud_url)
 
@@ -147,9 +130,7 @@ def cmd_results(args, config: PipelineConfig):
         results = list(cloud_client.export_cloud_results(session_id))
         if results:
             has_cloud_results = True
-            for line in results:
-                sys.stdout.write(line + "\n")
-            sys.stdout.flush()
+            _emit(results)
     except Exception:
         pass
 
@@ -161,9 +142,7 @@ def cmd_results(args, config: PipelineConfig):
             processor.process_pending_windows(session_id, mode="offline")
             results_list = list(storage.export_results(session_id))
 
-        for line in results_list:
-            sys.stdout.write(line + "\n")
-        sys.stdout.flush()
+        _emit(results_list)
 
 
 def cmd_run(args, config: PipelineConfig):
