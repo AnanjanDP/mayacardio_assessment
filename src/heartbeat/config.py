@@ -7,6 +7,27 @@ from dataclasses import dataclass
 from typing import Optional
 
 
+def _load_env_file():
+    env_file = os.path.join(os.getcwd(), ".env")
+    if os.path.exists(env_file):
+        try:
+            with open(env_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    k, v = line.split("=", 1)
+                    k = k.strip()
+                    v = v.strip().strip("'\"")
+                    if k not in os.environ:
+                        os.environ[k] = v
+        except Exception:
+            pass
+
+
+_load_env_file()
+
+
 @dataclass
 class PipelineConfig:
     # Database
