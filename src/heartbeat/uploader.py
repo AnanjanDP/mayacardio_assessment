@@ -90,15 +90,9 @@ class BacklogUploader:
         Finds all sessions in device storage and syncs their unuploaded data.
         If drain_backlog is True, continues syncing in batches until complete.
         """
-        conn = self.storage.get_connection()
-        try:
-            cur = conn.cursor()
-            cur.execute("SELECT DISTINCT session_id FROM samples")
-            sessions = [r[0] for r in cur.fetchall()]
-        finally:
-            conn.close()
-
+        sessions = self.storage.list_session_ids()
         total_synced = 0
+
         for sess in sessions:
             if drain_backlog:
                 while not self.stop_event.is_set():

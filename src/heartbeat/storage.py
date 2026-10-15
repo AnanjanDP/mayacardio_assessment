@@ -185,6 +185,16 @@ class DeviceStorage:
         finally:
             conn.close()
 
+    def list_session_ids(self) -> List[str]:
+        """Returns distinct session IDs recorded in samples."""
+        conn = self.get_connection()
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT DISTINCT session_id FROM samples")
+            return [r[0] for r in cur.fetchall()]
+        finally:
+            conn.close()
+
     def get_last_persisted_index(self, session_id: str, sensor: int) -> Optional[int]:
         """Returns the highest persisted index for this session and sensor."""
         conn = self.get_connection()
