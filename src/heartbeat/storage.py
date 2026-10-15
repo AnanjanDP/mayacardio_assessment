@@ -8,7 +8,7 @@ import json
 import logging
 import os
 import sqlite3
-from typing import Generator, List, Optional, Tuple
+from typing import Callable, Generator, List, Optional, Tuple
 
 from heartbeat.protocol import LossItem
 
@@ -445,59 +445,68 @@ class DeviceStorage:
         finally:
             conn.close()
 
-    def export_session_samples(self, session_id: str) -> Generator[str, None, None]:
+    def _stream_query(
+        self,
+        sql: str,
+        params: tuple,
+        row_mapper: Callable,
+        chunk_size: int = 1000,
+    ) -> Generator[str, None, None]:
+        """Generic memory-bounded streaming helper."""
+        conn = self.get_connection()
+        try:
+            cur = conn.cursor()
+            cur.execute(sql, params)
+            while True:
+                rows = cur.fetchmany(chunk_size)
+                if not rows:
+                    break
+                for row in rows:
+                    yield row_mapper(row)
+        finally:
+            conn.close()
+
+    def export_session_samples(self, session_id: str, chunk_size: int = 1000) -> Generator[str, None, None]:
         """
         Exports samples for session as formatted JSON Lines.
         Schema: {"sensor": 1, "index": 120000, "values": [720, 1200, 1560]}
         """
-        conn = self.get_connection()
-        try:
-            cur = conn.cursor()
-            cur.execute(
-                """SELECT sensor, sample_index, val0, val1, val2
-                   FROM samples
-                   WHERE session_id = ?
-                   ORDER BY sample_index ASC, sensor ASC""",
-                (session_id,),
-            )
-            for row in cur:
-                vals = [row["val0"], row["val1"]]
-                if row["val2"] is not None:
-                    vals.append(row["val2"])
-                rec = {
-                    "sensor": row["sensor"],
-                    "index": row["sample_index"],
-                    "values": vals,
-                }
-                yield json.dumps(rec)
-        finally:
-            conn.close()
+        sql = """SELECT sensor, sample_index, val0, val1, val2
+                 FROM samples
+                 WHERE session_id = ?
+                 ORDER BY sample_index ASC, sensor ASC"""
 
-    def export_session_losses(self, session_id: str) -> Generator[str, None, None]:
+        def mapper(row):
+            vals = [row["val0"], row["val1"]]
+            if row["val2"] is not None:
+                vals.append(row["val2"])
+            return json.dumps({
+                "sensor": row["sensor"],
+                "index": row["sample_index"],
+                "values": vals,
+            })
+
+        return self._stream_query(sql, (session_id,), mapper, chunk_size)
+
+    def export_session_losses(self, session_id: str, chunk_size: int = 1000) -> Generator[str, None, None]:
         """
         Exports loss records for session as formatted JSON Lines.
         Schema: {"sensor": 2, "from_index": 4000, "to_index": 4399, "reason": "buffer_overflow"}
         """
-        conn = self.get_connection()
-        try:
-            cur = conn.cursor()
-            cur.execute(
-                """SELECT sensor, from_index, to_index, reason
-                   FROM loss_records
-                   WHERE session_id = ?
-                   ORDER BY from_index ASC, sensor ASC""",
-                (session_id,),
-            )
-            for row in cur:
-                rec = {
-                    "sensor": row["sensor"],
-                    "from_index": row["from_index"],
-                    "to_index": row["to_index"],
-                    "reason": row["reason"],
-                }
-                yield json.dumps(rec)
-        finally:
-            conn.close()
+        sql = """SELECT sensor, from_index, to_index, reason
+                 FROM loss_records
+                 WHERE session_id = ?
+                 ORDER BY from_index ASC, sensor ASC"""
+
+        def mapper(row):
+            return json.dumps({
+                "sensor": row["sensor"],
+                "from_index": row["from_index"],
+                "to_index": row["to_index"],
+                "reason": row["reason"],
+            })
+
+        return self._stream_query(sql, (session_id,), mapper, chunk_size)
 
     def persist_result(
         self,
@@ -540,31 +549,25 @@ class DeviceStorage:
         finally:
             conn.close()
 
-    def export_results(self, session_id: str) -> Generator[str, None, None]:
+    def export_results(self, session_id: str, chunk_size: int = 500) -> Generator[str, None, None]:
         """
         Exports processing results for session as formatted JSON Lines.
         """
-        conn = self.get_connection()
-        try:
-            cur = conn.cursor()
-            cur.execute(
-                """SELECT window_index, mode, missing_1, missing_2, complete, channels_json, magnitude, heart_rate
-                   FROM processing_results
-                   WHERE session_id = ?
-                   ORDER BY window_index ASC, mode ASC""",
-                (session_id,),
-            )
-            for row in cur:
-                rec = {
-                    "window": row["window_index"],
-                    "mode": row["mode"],
-                    "missing_1": row["missing_1"],
-                    "missing_2": row["missing_2"],
-                    "complete": bool(row["complete"]),
-                    "channels": json.loads(row["channels_json"]),
-                    "magnitude": row["magnitude"],
-                    "heart_rate": row["heart_rate"],
-                }
-                yield json.dumps(rec)
-        finally:
-            conn.close()
+        sql = """SELECT window_index, mode, missing_1, missing_2, complete, channels_json, magnitude, heart_rate
+                 FROM processing_results
+                 WHERE session_id = ?
+                 ORDER BY window_index ASC, mode ASC"""
+
+        def mapper(row):
+            return json.dumps({
+                "window": row["window_index"],
+                "mode": row["mode"],
+                "missing_1": row["missing_1"],
+                "missing_2": row["missing_2"],
+                "complete": bool(row["complete"]),
+                "channels": json.loads(row["channels_json"]),
+                "magnitude": row["magnitude"],
+                "heart_rate": row["heart_rate"],
+            })
+
+        return self._stream_query(sql, (session_id,), mapper, chunk_size)
