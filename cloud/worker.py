@@ -7,7 +7,7 @@ import datetime
 import json
 import logging
 import threading
-from typing import Dict, List, Optional, Set
+from typing import Dict, Optional, Set
 
 from cloud.storage import CloudStorage
 from heartbeat.processor import WINDOW_SIZE, process_window
