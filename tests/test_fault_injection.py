@@ -1,11 +1,3 @@
-"""
-Integration and fault injection tests:
-- Corrupted CRC32 injection and recovery
-- Duplicate reply handling
-- Mock restart detection
-- Collector crash and recovery
-"""
-
 import os
 import threading
 import time
@@ -21,7 +13,6 @@ def test_corrupt_crc_retry_recovery(temp_dir):
     mock_port = 7189
     stop_mock = threading.Event()
 
-    # Mock occasionally produces corrupt CRC
     t_mock = threading.Thread(
         target=run_mock_server,
         kwargs={
@@ -47,7 +38,6 @@ def test_corrupt_crc_retry_recovery(temp_dir):
 
     try:
         collector.connect()
-        # Collect steps should retry and succeed or skip without crashing
         for _ in range(10):
             collector.collect_step(1)
             collector.collect_step(2)
@@ -85,7 +75,6 @@ def test_crash_recovery_resumes_cursor(temp_dir):
     storage = DeviceStorage(db_path=db_path, synchronous="NORMAL")
     loss_tracker = LossTracker(storage)
 
-    # First process run
     collector1 = SensorCollector(config, storage, loss_tracker)
     collector1.connect()
     for _ in range(5):
@@ -100,7 +89,6 @@ def test_crash_recovery_resumes_cursor(temp_dir):
     assert cursor1_s1 is not None and cursor1_s1 >= 0
     assert cursor1_s2 is not None and cursor1_s2 >= 0
 
-    # Simulate process crash and restart: create a new collector instance pointing to same storage
     collector2 = SensorCollector(config, storage, loss_tracker)
     try:
         collector2.connect()
@@ -112,7 +100,6 @@ def test_crash_recovery_resumes_cursor(temp_dir):
         collector2.close()
         stop_mock.set()
 
-    # Verify cursors continued and grew without corrupting past state
     cursor2_s1 = storage.get_last_persisted_index(session_id, 1)
     cursor2_s2 = storage.get_last_persisted_index(session_id, 2)
     assert cursor2_s1 >= cursor1_s1

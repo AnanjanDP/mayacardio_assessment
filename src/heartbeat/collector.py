@@ -1,9 +1,3 @@
-"""
-Sensor collector for Never Lose a Heartbeat.
-Manages single TCP connection to mock service, alternates sensors, validates CRC32,
-retries corrupt batches, and persists valid samples transactionally.
-"""
-
 import json
 import logging
 import socket
@@ -20,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 
 class SensorCollector:
-    """Collects Sensor 1 and Sensor 2 continuously over a single TCP connection."""
 
     def __init__(
         self,
@@ -39,7 +32,6 @@ class SensorCollector:
         self._recv_buffer: str = ""
 
     def connect(self) -> bool:
-        """Establishes TCP connection to mock service."""
         if self._sock is not None:
             try:
                 self._sock.close()
@@ -60,7 +52,6 @@ class SensorCollector:
             return False
 
     def close(self):
-        """Closes TCP connection."""
         if self._sock:
             try:
                 self._sock.close()
@@ -69,7 +60,6 @@ class SensorCollector:
             self._sock = None
 
     def _send_command(self, cmd_obj: dict) -> bool:
-        """Sends a JSON command followed by newline."""
         if not self._sock:
             return False
         try:
@@ -82,7 +72,6 @@ class SensorCollector:
             return False
 
     def _read_line(self, timeout: float = 3.0) -> Optional[str]:
-        """Reads a single newline-delimited line from socket."""
         if not self._sock:
             return None
 
@@ -113,7 +102,6 @@ class SensorCollector:
     def read_sensor_batch(
         self, sensor: int, retry_from: Optional[int] = None
     ) -> Tuple[Optional[SensorResponse], Optional[str]]:
-        """Sends read request for sensor and parses validated response."""
         req: dict = {"cmd": "read", "sensor": sensor}
         if retry_from is not None:
             req["from_index"] = retry_from
@@ -129,15 +117,6 @@ class SensorCollector:
         return resp, err
 
     def collect_step(self, sensor: int) -> bool:
-        """
-        Executes a single collection step for one sensor:
-        1. Queries persistent storage for current cursor.
-        2. Requests next batch (or retry from cursor + 1).
-        3. Validates CRC32 and schema.
-        4. Handles retries if corrupted.
-        5. Reconciles session changes and losses.
-        6. Persists transactionally.
-        """
         if not self._sock:
             if not self.connect():
                 return False
@@ -161,7 +140,6 @@ class SensorCollector:
             logger.debug("Failed reading sensor %d: %s", sensor, err)
             return False
 
-        # Detect session change
         if self.current_session_id is None:
             self.current_session_id = resp.session_id
             self.storage.record_session(resp.session_id)
@@ -171,7 +149,6 @@ class SensorCollector:
             self.current_session_id = resp.session_id
             last_persisted = None
 
-        # Reconcile gaps and explicit losses
         all_losses = self.loss_tracker.track_batch_losses(
             session_id=resp.session_id,
             sensor=sensor,
@@ -181,7 +158,6 @@ class SensorCollector:
             last_persisted_index=last_persisted,
         )
 
-        # Persist transactionally
         try:
             self.storage.persist_batch(
                 session_id=resp.session_id,
@@ -191,7 +167,6 @@ class SensorCollector:
                 loss_items=all_losses,
                 session_end=resp.session_end,
             )
-            # Flush any in-memory disk-full losses if storage was previously degraded
             self.loss_tracker.flush_pending_losses()
             return True
         except Exception as e:
@@ -205,7 +180,6 @@ class SensorCollector:
             return False
 
     def run_loop(self):
-        """Continuous collection loop alternating between sensors."""
         logger.info("Starting sensor collector loop...")
         backoff = 0.1
         while not self.stop_event.is_set():

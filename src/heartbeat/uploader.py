@@ -1,8 +1,3 @@
-"""
-Backlog uploader and cloud synchronization worker for Never Lose a Heartbeat.
-Transfers unuploaded samples and loss records in bounded batches with idempotent retry.
-"""
-
 import logging
 import threading
 import time
@@ -16,7 +11,6 @@ logger = logging.getLogger(__name__)
 
 
 class BacklogUploader:
-    """Manages continuous synchronization and backlog catch-up to the cloud."""
 
     def __init__(
         self,
@@ -33,16 +27,9 @@ class BacklogUploader:
         self.stop_event = stop_event or threading.Event()
 
     def sync_session_step(self, session_id: str) -> int:
-        """
-        Executes one synchronization step for a session:
-        1. Uploads unuploaded loss records.
-        2. Uploads unuploaded samples for sensor 1 and sensor 2.
-        Returns number of samples synced in this step.
-        """
         if self.mode_manager.get_mode() != "online":
             return 0
 
-        # 1. Sync loss records first
         unuploaded_losses = self.storage.get_unuploaded_loss_records(session_id, limit=200)
         if unuploaded_losses:
             loss_ids = [lr["id"] for lr in unuploaded_losses]
@@ -57,7 +44,6 @@ class BacklogUploader:
                 return 0
 
         total_synced = 0
-        # 2. Sync samples for sensor 1 and sensor 2
         for sensor in (1, 2):
             samples_data = self.storage.get_unuploaded_samples(
                 session_id=session_id, sensor=sensor, limit=self.batch_size
@@ -86,10 +72,6 @@ class BacklogUploader:
         return total_synced
 
     def sync_all_sessions(self, drain_backlog: bool = False) -> int:
-        """
-        Finds all sessions in device storage and syncs their unuploaded data.
-        If drain_backlog is True, continues syncing in batches until complete.
-        """
         sessions = self.storage.list_session_ids()
         total_synced = 0
 
@@ -106,13 +88,12 @@ class BacklogUploader:
         return total_synced
 
     def run_loop(self):
-        """Continuous synchronization loop active during online mode."""
         logger.info("Starting backlog uploader loop...")
         while not self.stop_event.is_set():
             if self.mode_manager.get_mode() == "online":
                 synced = self.sync_all_sessions(drain_backlog=True)
                 if synced > 0:
-                    time.sleep(0.01)  # fast catchup
+                    time.sleep(0.01)
                 else:
                     time.sleep(0.2)
             else:

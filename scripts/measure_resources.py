@@ -1,13 +1,3 @@
-"""
-measure_resources.py: Continuous resource usage and performance profiler.
-Measures:
-- Average CPU utilization over time
-- Peak resident memory (RSS MB)
-- Megabytes written to disk
-- Megabytes transmitted over network
-- Ingestion and synchronization throughput
-"""
-
 import argparse
 import os
 import shutil
@@ -42,7 +32,6 @@ def measure_pipeline_resources(duration_seconds: int = 60):
     env["CLOUD_PORT"] = str(cloud_port)
     env["PIPELINE_POLL_INTERVAL"] = "0.01"
 
-    # Start mock server
     mock_proc = subprocess.Popen(
         [sys.executable, "-m", "mock.biosignal_mock", "--mode", "signal", "--port", str(mock_port), "--duration", str(duration_seconds + 30)],
         env=env,
@@ -51,7 +40,6 @@ def measure_pipeline_resources(duration_seconds: int = 60):
     )
     time.sleep(1.0)
 
-    # Start cloud server
     cloud_proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "cloud.api:app", "--port", str(cloud_port), "--host", "127.0.0.1", "--log-level", "warning"],
         env=env,
@@ -60,7 +48,6 @@ def measure_pipeline_resources(duration_seconds: int = 60):
     )
     time.sleep(1.5)
 
-    # Start pipeline
     pipe_proc = subprocess.Popen(
         [sys.executable, "-m", "heartbeat.cli", "run"],
         env=env,
@@ -99,7 +86,6 @@ def measure_pipeline_resources(duration_seconds: int = 60):
     final_net = psutil.net_io_counters()
     net_sent_mb = (final_net.bytes_sent - initial_net.bytes_sent) / (1024 * 1024)
 
-    # Disk usage
     db_size_mb = os.path.getsize(dev_db) / (1024 * 1024) if os.path.exists(dev_db) else 0.0
     wal_path = dev_db + "-wal"
     if os.path.exists(wal_path):
@@ -107,7 +93,6 @@ def measure_pipeline_resources(duration_seconds: int = 60):
 
     avg_cpu = sum(cpu_readings) / len(cpu_readings) if cpu_readings else 0.0
 
-    # Project to 1 hour
     scale_factor = 3600.0 / duration_seconds
     projected_disk_mb_hr = db_size_mb * scale_factor
     projected_net_mb_hr = net_sent_mb * scale_factor

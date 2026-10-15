@@ -1,8 +1,3 @@
-"""
-Durable SQLite storage engine for Never Lose a Heartbeat.
-Enforces WAL mode, synchronous=FULL durability, transactions, and idempotent inserts.
-"""
-
 import datetime
 import json
 import logging
@@ -16,7 +11,6 @@ logger = logging.getLogger(__name__)
 
 
 class DeviceStorage:
-    """Manages edge SQLite database with strict durability and transaction semantics."""
 
     def __init__(self, db_path: str = "data/device.db", synchronous: str = "FULL", journal_mode: str = "WAL"):
         self.db_path = db_path
@@ -31,7 +25,6 @@ class DeviceStorage:
             os.makedirs(dir_name, exist_ok=True)
 
     def get_connection(self) -> sqlite3.Connection:
-        """Opens a SQLite connection configured for durability and concurrency."""
         conn = sqlite3.connect(self.db_path, timeout=10.0, isolation_level=None)
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
@@ -43,7 +36,6 @@ class DeviceStorage:
         return conn
 
     def _init_db(self):
-        """Initializes tables, indices, and constraints."""
         conn = self.get_connection()
         try:
             with conn:
@@ -125,7 +117,6 @@ class DeviceStorage:
             conn.close()
 
     def record_session(self, session_id: str):
-        """Idempotently records session start."""
         now = datetime.datetime.utcnow().isoformat()
         conn = self.get_connection()
         try:
@@ -138,7 +129,6 @@ class DeviceStorage:
             conn.close()
 
     def end_session(self, session_id: str):
-        """Marks session as ended."""
         now = datetime.datetime.utcnow().isoformat()
         conn = self.get_connection()
         try:
@@ -151,7 +141,6 @@ class DeviceStorage:
             conn.close()
 
     def get_latest_session_id(self) -> Optional[str]:
-        """Returns the most recently recorded session ID, if any."""
         conn = self.get_connection()
         try:
             cur = conn.cursor()
@@ -162,7 +151,6 @@ class DeviceStorage:
             conn.close()
 
     def list_sessions(self) -> List[dict]:
-        """Returns all recorded sessions with metadata and sample counts."""
         conn = self.get_connection()
         try:
             cur = conn.cursor()
@@ -186,7 +174,6 @@ class DeviceStorage:
             conn.close()
 
     def list_session_ids(self) -> List[str]:
-        """Returns distinct session IDs recorded in samples."""
         conn = self.get_connection()
         try:
             cur = conn.cursor()
@@ -196,7 +183,6 @@ class DeviceStorage:
             conn.close()
 
     def get_last_persisted_index(self, session_id: str, sensor: int) -> Optional[int]:
-        """Returns the highest persisted index for this session and sensor."""
         conn = self.get_connection()
         try:
             cur = conn.cursor()
@@ -207,7 +193,6 @@ class DeviceStorage:
             row = cur.fetchone()
             if row is not None:
                 return row[0]
-            # Fallback to direct max in samples
             cur.execute(
                 "SELECT MAX(sample_index) FROM samples WHERE session_id = ? AND sensor = ?",
                 (session_id, sensor),
@@ -226,23 +211,17 @@ class DeviceStorage:
         loss_items: List[LossItem],
         session_end: bool = False,
     ) -> int:
-        """
-        Transactionally persists samples and loss items, then advances collection_cursor.
-        Returns number of samples persisted.
-        """
         now = datetime.datetime.utcnow().isoformat()
         conn = self.get_connection()
         try:
             with conn:
                 conn.execute("BEGIN IMMEDIATE")
 
-                # Ensure session
                 conn.execute(
                     "INSERT OR IGNORE INTO sessions (session_id, started_at) VALUES (?, ?)",
                     (session_id, now),
                 )
 
-                # Insert loss records
                 for loss in loss_items:
                     conn.execute(
                         """INSERT INTO loss_records (session_id, sensor, from_index, to_index, reason, detected_at)
@@ -250,7 +229,6 @@ class DeviceStorage:
                         (session_id, sensor, loss.from_index, loss.to_index, loss.reason, now),
                     )
 
-                # Insert samples
                 inserted_count = 0
                 sample_rows = []
                 for offset, sample in enumerate(data):
@@ -268,7 +246,6 @@ class DeviceStorage:
                     )
                     inserted_count = len(sample_rows)
 
-                # Update collection cursor
                 if data:
                     max_idx = first_index + len(data) - 1
                     conn.execute(
@@ -301,7 +278,6 @@ class DeviceStorage:
         to_index: Optional[int],
         reason: str,
     ):
-        """Records an explicit loss event."""
         now = datetime.datetime.utcnow().isoformat()
         conn = self.get_connection()
         try:
@@ -315,18 +291,12 @@ class DeviceStorage:
             conn.close()
 
     def get_sync_status(self) -> Tuple[int, int, int]:
-        """
-        Returns (samples_saved, samples_in_cloud, backlog).
-        Calculated from actual persistent SQLite state.
-        """
         conn = self.get_connection()
         try:
             cur = conn.cursor()
             cur.execute("SELECT COUNT(*) FROM samples")
             samples_saved = cur.fetchone()[0]
 
-            # Cloud count tracked across sessions from sync_cursor
-            # Calculate backlog: samples with index > last_uploaded_index for each (session, sensor)
             cur.execute("""
                 SELECT s.session_id, s.sensor, COALESCE(sc.last_uploaded_index, -1) as last_uploaded
                 FROM (SELECT DISTINCT session_id, sensor FROM samples) s
@@ -353,10 +323,6 @@ class DeviceStorage:
     def get_unuploaded_samples(
         self, session_id: str, sensor: int, limit: int = 2000
     ) -> List[Tuple[int, List[int]]]:
-        """
-        Fetches next batch of unuploaded samples for given session and sensor.
-        Returns list of (sample_index, values).
-        """
         conn = self.get_connection()
         try:
             cur = conn.cursor()
@@ -386,7 +352,6 @@ class DeviceStorage:
             conn.close()
 
     def get_unuploaded_loss_records(self, session_id: str, limit: int = 500) -> List[dict]:
-        """Fetches loss records that have not yet been confirmed synced to the cloud."""
         conn = self.get_connection()
         try:
             cur = conn.cursor()
@@ -414,7 +379,6 @@ class DeviceStorage:
             conn.close()
 
     def advance_sync_cursor(self, session_id: str, sensor: int, confirmed_index: int):
-        """Advances the sync cursor after cloud transaction commits."""
         now = datetime.datetime.utcnow().isoformat()
         conn = self.get_connection()
         try:
@@ -431,7 +395,6 @@ class DeviceStorage:
             conn.close()
 
     def mark_loss_records_synced(self, loss_record_ids: List[int]):
-        """Marks loss record IDs as confirmed uploaded to the cloud."""
         if not loss_record_ids:
             return
         now = datetime.datetime.utcnow().isoformat()
@@ -452,7 +415,6 @@ class DeviceStorage:
         row_mapper: Callable,
         chunk_size: int = 1000,
     ) -> Generator[str, None, None]:
-        """Generic memory-bounded streaming helper."""
         conn = self.get_connection()
         try:
             cur = conn.cursor()
@@ -467,10 +429,6 @@ class DeviceStorage:
             conn.close()
 
     def export_session_samples(self, session_id: str, chunk_size: int = 1000) -> Generator[str, None, None]:
-        """
-        Exports samples for session as formatted JSON Lines.
-        Schema: {"sensor": 1, "index": 120000, "values": [720, 1200, 1560]}
-        """
         sql = """SELECT sensor, sample_index, val0, val1, val2
                  FROM samples
                  WHERE session_id = ?
@@ -489,10 +447,6 @@ class DeviceStorage:
         return self._stream_query(sql, (session_id,), mapper, chunk_size)
 
     def export_session_losses(self, session_id: str, chunk_size: int = 1000) -> Generator[str, None, None]:
-        """
-        Exports loss records for session as formatted JSON Lines.
-        Schema: {"sensor": 2, "from_index": 4000, "to_index": 4399, "reason": "buffer_overflow"}
-        """
         sql = """SELECT sensor, from_index, to_index, reason
                  FROM loss_records
                  WHERE session_id = ?
@@ -520,7 +474,6 @@ class DeviceStorage:
         magnitude: Optional[float],
         heart_rate: Optional[float],
     ):
-        """Persists a window processing result."""
         now = datetime.datetime.utcnow().isoformat()
         conn = self.get_connection()
         try:
@@ -550,9 +503,6 @@ class DeviceStorage:
             conn.close()
 
     def export_results(self, session_id: str, chunk_size: int = 500) -> Generator[str, None, None]:
-        """
-        Exports processing results for session as formatted JSON Lines.
-        """
         sql = """SELECT window_index, mode, missing_1, missing_2, complete, channels_json, magnitude, heart_rate
                  FROM processing_results
                  WHERE session_id = ?

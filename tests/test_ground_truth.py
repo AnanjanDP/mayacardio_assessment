@@ -1,7 +1,3 @@
-"""
-Integration tests for ground truth verification with ramp mode and check_ground_truth tool.
-"""
-
 import os
 import threading
 import time
@@ -19,7 +15,6 @@ def test_ramp_mode_ground_truth_integration(temp_dir):
     mock_port = 7188
     stop_mock = threading.Event()
 
-    # Start mock in ramp mode with fast clock
     t_mock = threading.Thread(
         target=run_mock_server,
         kwargs={
@@ -28,7 +23,7 @@ def test_ramp_mode_ground_truth_integration(temp_dir):
             "duration": 60,
             "port": mock_port,
             "host": "127.0.0.1",
-            "fast_clock": 20.0,  # 20x speed for testing
+            "fast_clock": 20.0,
             "stop_event": stop_mock,
         },
         daemon=True,
@@ -46,7 +41,6 @@ def test_ramp_mode_ground_truth_integration(temp_dir):
     loss_tracker = LossTracker(storage)
     collector = SensorCollector(config, storage, loss_tracker)
 
-    # Collect ~5 batches of both sensors
     try:
         collector.connect()
         for _ in range(10):
@@ -60,7 +54,6 @@ def test_ramp_mode_ground_truth_integration(temp_dir):
     session_id = collector.current_session_id
     assert session_id is not None
 
-    # Export to file
     export_file = os.path.join(temp_dir, "export.ndjson")
     with open(export_file, "w", encoding="utf-8") as f:
         for line in storage.export_session_samples(session_id):
@@ -68,7 +61,6 @@ def test_ramp_mode_ground_truth_integration(temp_dir):
         for line in storage.export_session_losses(session_id):
             f.write(line + "\n")
 
-    # Run check_ground_truth
     passed, summary = check_export(export_file, mode="ramp")
     assert passed is True
     assert summary["duplicates"] == 0
@@ -79,7 +71,6 @@ def test_ramp_mode_ground_truth_integration(temp_dir):
     assert summary["samples_sensor1"] > 0
     assert summary["samples_sensor2"] > 0
 
-    # Test processing results
     processor = LocalProcessor(storage)
     n_processed = processor.process_pending_windows(session_id, mode="offline")
 

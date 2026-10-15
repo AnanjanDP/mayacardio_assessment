@@ -1,9 +1,3 @@
-"""
-Command Line Interface for Never Lose a Heartbeat.
-Implements required 'status', 'export', and 'results' commands, plus 'run' and 'sync'.
-Outputs strict JSON lines without corrupting diagnostic text.
-"""
-
 import argparse
 import itertools
 import json
@@ -23,7 +17,6 @@ from heartbeat.uploader import BacklogUploader
 
 
 def configure_logging(level_name: str = "WARNING"):
-    """Configures logging to stderr so stdout remains clean for JSON Lines."""
     level = getattr(logging, level_name.upper(), logging.WARNING)
     logging.basicConfig(
         level=level,
@@ -33,14 +26,12 @@ def configure_logging(level_name: str = "WARNING"):
 
 
 def _emit(lines) -> None:
-    """Write each line to stdout as JSON Lines, then flush once."""
     for line in lines:
         sys.stdout.write(line + "\n")
     sys.stdout.flush()
 
 
 def _resolve_session(storage, session_id: str) -> str:
-    """Maps 'latest'/'last'/'current' to the most recent session; exits 1 if none."""
     if session_id.lower() in ("latest", "last", "current"):
         session_id = storage.get_latest_session_id()
         if not session_id:
@@ -50,10 +41,6 @@ def _resolve_session(storage, session_id: str) -> str:
 
 
 def cmd_status(args, config: PipelineConfig):
-    """
-    Prints exactly one JSON line:
-    {"mode": "online", "samples_saved": 120400, "samples_in_cloud": 120400, "backlog": 0}
-    """
     storage = DeviceStorage(db_path=config.db_path, synchronous=config.sqlite_synchronous)
     cloud_client = CloudClient(base_url=config.cloud_url)
     mode_mgr = ModeManager(cloud_client=cloud_client)
@@ -61,7 +48,6 @@ def cmd_status(args, config: PipelineConfig):
     current_mode = mode_mgr.check_now()
     saved, in_cloud, backlog = storage.get_sync_status()
 
-    # Reconcile with actual cloud reported count if online
     if current_mode == "online":
         cloud_stat = cloud_client.get_cloud_status()
         if cloud_stat and "total_samples" in cloud_stat:
@@ -79,9 +65,6 @@ def cmd_status(args, config: PipelineConfig):
 
 
 def cmd_sessions(args, config: PipelineConfig):
-    """
-    Lists all recorded sessions with metadata and sample counts.
-    """
     storage = DeviceStorage(db_path=config.db_path)
     sessions = storage.list_sessions()
     if not sessions:
@@ -91,9 +74,6 @@ def cmd_sessions(args, config: PipelineConfig):
 
 
 def cmd_export(args, config: PipelineConfig):
-    """
-    Exports samples and loss records as JSON lines from device or cloud.
-    """
     storage = DeviceStorage(db_path=config.db_path)
     session_id = _resolve_session(storage, args.session)
 
@@ -113,15 +93,11 @@ def cmd_export(args, config: PipelineConfig):
 
 
 def cmd_results(args, config: PipelineConfig):
-    """
-    Prints processing results for the given session.
-    """
     storage = DeviceStorage(db_path=config.db_path)
     session_id = _resolve_session(storage, args.session)
 
     cloud_client = CloudClient(base_url=config.cloud_url)
 
-    # Check if results are in cloud first
     has_cloud_results = False
     try:
         results = list(cloud_client.export_cloud_results(session_id))
@@ -132,7 +108,6 @@ def cmd_results(args, config: PipelineConfig):
         logging.getLogger(__name__).debug("cloud results unavailable", exc_info=True)
 
     if not has_cloud_results:
-        # Fallback to device storage offline results (compute on demand if needed)
         results_list = list(storage.export_results(session_id))
         if not results_list:
             processor = LocalProcessor(storage)
@@ -143,9 +118,6 @@ def cmd_results(args, config: PipelineConfig):
 
 
 def cmd_run(args, config: PipelineConfig):
-    """
-    Runs the full edge pipeline: collector, mode manager, uploader, local processor.
-    """
     configure_logging(config.log_level)
     logging.info("Starting Never Lose a Heartbeat edge pipeline...")
 
@@ -160,7 +132,6 @@ def cmd_run(args, config: PipelineConfig):
     uploader = BacklogUploader(storage, cloud_client, mode_mgr, batch_size=config.sync_batch_size, stop_event=stop_event)
     local_processor = LocalProcessor(storage)
 
-    # Background threads
     t_mode = threading.Thread(target=mode_mgr.run_loop, daemon=True, name="ModeManager")
     t_upload = threading.Thread(target=uploader.run_loop, daemon=True, name="Uploader")
 
@@ -187,7 +158,6 @@ def cmd_run(args, config: PipelineConfig):
 
 
 def cmd_sync(args, config: PipelineConfig):
-    """Triggers an immediate catchup synchronization."""
     storage = DeviceStorage(db_path=config.db_path)
     cloud_client = CloudClient(base_url=config.cloud_url)
     mode_mgr = ModeManager(cloud_client)
@@ -207,25 +177,19 @@ def main():
     parser = argparse.ArgumentParser(prog="pipeline", description="Never Lose a Heartbeat CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # status
     subparsers.add_parser("status", help="Print pipeline status JSON")
 
-    # sessions
     subparsers.add_parser("sessions", help="List all recorded sessions and sample counts")
 
-    # export
     parser_export = subparsers.add_parser("export", help="Export samples and loss records")
     parser_export.add_argument("--session", default="latest", help="Session ID to export (or 'latest')")
     parser_export.add_argument("--from", dest="from", choices=["device", "cloud"], required=True, help="Source to export from")
 
-    # results
     parser_results = subparsers.add_parser("results", help="Print processing results")
     parser_results.add_argument("--session", default="latest", help="Session ID (or 'latest')")
 
-    # run
     subparsers.add_parser("run", help="Run edge collector and synchronizer")
 
-    # sync
     subparsers.add_parser("sync", help="Trigger immediate backlog synchronization")
 
     args = parser.parse_args()

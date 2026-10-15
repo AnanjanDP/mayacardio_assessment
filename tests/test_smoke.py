@@ -1,13 +1,3 @@
-"""
-tests/test_smoke.py: Safety net smoke tests covering primary end-to-end flows.
-Verified to pass BEFORE any codebase refactoring/cleanup begins:
-1. Edge device storage persistence & export formatting.
-2. Cloud API ingestion & status reporting.
-3. Cloud streaming NDJSON data export.
-4. Edge-to-cloud backlog catch-up and sync cursor drain.
-5. Edge offline window processor completeness and statistics.
-"""
-
 import json
 from fastapi.testclient import TestClient
 import pytest
@@ -32,7 +22,6 @@ def smoke_cloud(tmp_path, monkeypatch):
 
 
 def test_smoke_edge_device_persistence_and_export(tmp_path):
-    """Smoke Test 1: Device storage persists samples and exports valid NDJSON."""
     db_file = str(tmp_path / "smoke_dev.db")
     storage = DeviceStorage(db_path=db_file, synchronous="NORMAL")
 
@@ -50,14 +39,12 @@ def test_smoke_edge_device_persistence_and_export(tmp_path):
     assert persisted == 3
     assert storage.get_last_persisted_index(session_id, 1) == 2
 
-    # Verify sample export lines
     exp_samples = [json.loads(line) for line in storage.export_session_samples(session_id)]
     assert len(exp_samples) == 3
     assert exp_samples[0]["sensor"] == 1
     assert exp_samples[0]["index"] == 0
     assert exp_samples[0]["values"] == [100, 200, 300]
 
-    # Verify loss export lines
     exp_losses = [json.loads(line) for line in storage.export_session_losses(session_id)]
     assert len(exp_losses) == 1
     assert exp_losses[0]["reason"] == "packet_drop"
@@ -66,15 +53,12 @@ def test_smoke_edge_device_persistence_and_export(tmp_path):
 
 
 def test_smoke_cloud_ingest_and_status(smoke_cloud):
-    """Smoke Test 2: Cloud API accepts batch ingest and updates status counters."""
     _, client = smoke_cloud
 
-    # Probe health
     h_resp = client.get("/health")
     assert h_resp.status_code == 200
     assert h_resp.json()["status"] == "ok"
 
-    # Ingest batch
     session_id = "smoke_cloud_01"
     payload = {
         "session_id": session_id,
@@ -94,7 +78,6 @@ def test_smoke_cloud_ingest_and_status(smoke_cloud):
     assert res["inserted_samples"] == 3
     assert res["inserted_losses"] == 1
 
-    # Check status endpoint
     s_resp = client.get("/api/status")
     assert s_resp.status_code == 200
     stat = s_resp.json()
@@ -102,7 +85,6 @@ def test_smoke_cloud_ingest_and_status(smoke_cloud):
 
 
 def test_smoke_cloud_export_ndjson_streaming(smoke_cloud):
-    """Smoke Test 3: Cloud export streams newline-delimited JSON matching schema."""
     _, client = smoke_cloud
     session_id = "smoke_export_sess"
 
@@ -119,7 +101,6 @@ def test_smoke_cloud_export_ndjson_streaming(smoke_cloud):
     lines = [json.loads(l) for l in resp.text.strip().split("\n") if l.strip()]
     assert len(lines) == 2
 
-    # One sample and one loss record
     sample_line = next(l for l in lines if "values" in l)
     loss_line = next(l for l in lines if "reason" in l)
     assert sample_line["sensor"] == 1
@@ -129,7 +110,6 @@ def test_smoke_cloud_export_ndjson_streaming(smoke_cloud):
 
 
 def test_smoke_backlog_uploader_sync_drain(tmp_path, smoke_cloud):
-    """Smoke Test 4: Backlog uploader drains unuploaded data and advances sync cursor."""
     _, client = smoke_cloud
     dev_db = str(tmp_path / "smoke_sync_dev.db")
     dev_storage = DeviceStorage(db_path=dev_db, synchronous="NORMAL")
@@ -147,7 +127,6 @@ def test_smoke_backlog_uploader_sync_drain(tmp_path, smoke_cloud):
     assert saved == 3
     assert backlog == 3
 
-    # Direct client adapter connecting uploader to testclient
     class TestClientAdapter:
         def check_health(self):
             return True
@@ -174,21 +153,17 @@ def test_smoke_backlog_uploader_sync_drain(tmp_path, smoke_cloud):
     synced = uploader.sync_all_sessions(drain_backlog=True)
     assert synced == 3
 
-    # Backlog must now be 0
     saved2, in_cloud2, backlog2 = dev_storage.get_sync_status()
     assert saved2 == 3
     assert backlog2 == 0
 
 
 def test_smoke_local_processor_window_math(tmp_path):
-    """Smoke Test 5: LocalProcessor processes 1-second window correctly."""
     dev_db = str(tmp_path / "smoke_proc.db")
     dev_storage = DeviceStorage(db_path=dev_db, synchronous="NORMAL")
 
     session_id = "smoke_proc_sess"
-    # 400 samples for sensor 1 (ch1, ch2, ch3)
     s1_data = [[100, 200, 300] for _ in range(400)]
-    # 400 samples for sensor 2 (ch1, ch2)
     s2_data = [[4000, 3000] for _ in range(400)]
 
     dev_storage.persist_batch(session_id, 1, 0, s1_data, [])
@@ -198,7 +173,6 @@ def test_smoke_local_processor_window_math(tmp_path):
     n_processed = processor.process_pending_windows(session_id, mode="offline")
     assert n_processed == 1
 
-    # Check exported results
     results = [json.loads(line) for line in dev_storage.export_results(session_id)]
     assert len(results) == 1
     w0 = results[0]
@@ -209,4 +183,4 @@ def test_smoke_local_processor_window_math(tmp_path):
     assert w0["missing_2"] == 0
     assert w0["channels"]["sensor1_ch1"]["mean"] == 100.0
     assert w0["channels"]["sensor2_ch1"]["mean"] == 4000.0
-    assert w0["magnitude"] == 5000.0  # sqrt(4000^2 + 3000^2) = 5000.0
+    assert w0["magnitude"] == 5000.0

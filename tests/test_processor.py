@@ -1,7 +1,3 @@
-"""
-Unit tests for shared processing engine: window boundaries, stats, magnitude, completeness.
-"""
-
 from heartbeat.processor import (
     compute_channel_stats,
     compute_sensor2_magnitude,
@@ -25,7 +21,6 @@ def test_channel_stats_empty():
 
 
 def test_sensor2_magnitude():
-    # Samples with ch1=3, ch2=4 -> sqrt(3^2 + 4^2) = 5.0
     s2_samples = {
         0: [3, 4],
         1: [3, 4],
@@ -40,7 +35,6 @@ def test_sensor2_magnitude_empty():
 
 def test_process_window_completeness():
     w = 0
-    # Provide complete 400 samples for sensor 1 and sensor 2
     s1 = {i: [100, 200, 300] for i in range(400)}
     s2 = {i: [400000, 150000] for i in range(400)}
 
@@ -59,12 +53,11 @@ def test_process_window_completeness():
     assert res["complete"] is True
     assert res["channels"]["sensor1_ch1"]["mean"] == 100.0
     assert res["magnitude"] is not None
-    assert res["heart_rate"] is None  # w=0 < 4
+    assert res["heart_rate"] is None
 
 
 def test_process_window_partial():
     w = 1
-    # Only 300 samples for s1 (100 missing), 400 for s2
     s1 = {i: [100, 200, 300] for i in range(400, 700)}
     s2 = {i: [400000, 150000] for i in range(400, 800)}
 

@@ -1,13 +1,3 @@
-"""
-verify_all.py: Master automated evaluation and verification suite.
-Validates all 8 Completion Criteria and scoring areas from the Never Lose a Heartbeat assessment:
-- Criteria 1-3 (35 pts): Data safety on the device (0 duplicates, 0 value mutations, crash & power recovery)
-- Criteria 4-5 (25 pts): Online mode and switching (< 5s window SLA, < 10s mode switch SLA)
-- Criterion 6  (20 pts): Complete cloud copy (< 15 min 2h catch-up SLA)
-- Criterion 7  (10 pts): Correct results (ECG peak detection, magnitude, channel statistics)
-- Criterion 8  (10 pts): Design note, code quality, and resource envelope (ARM64 <= 4 cores, <= 2GB RAM)
-"""
-
 import subprocess
 import sys
 import time
@@ -52,35 +42,30 @@ def main():
 
     results = {}
 
-    # Step 1: Unit & Integration Test Matrix (42 automated tests)
     print_header("Step 1/4: Comprehensive Unit & Integration Test Suite")
     results["unit_tests"] = run_step(
         "Automated Test Suite (42 tests)",
         [sys.executable, "-m", "pytest", "-q"],
     )
 
-    # Step 2: Sudden Process Crash & Durable Recovery Simulation
     print_header("Step 2/4: Sudden Process Crash (SIGKILL) & Durable Recovery")
     results["crash_sim"] = run_step(
         "Crash Recovery & Ground Truth Verification",
         [sys.executable, "scripts/simulate_crash.py"],
     )
 
-    # Step 3: Network Outage & Automatic Mode Switching
     print_header("Step 3/4: Network Outage & Automatic Dual-Mode Switching")
     results["outage_sim"] = run_step(
         "Outage Mode Switch & Backlog Drain Verification",
         [sys.executable, "scripts/simulate_outage.py"],
     )
 
-    # Step 4: High-Throughput & Catch-up SLA Benchmark
     print_header("Step 4/4: Ingestion & 2-Hour Outage Catch-up Benchmark")
     results["benchmark"] = run_step(
         "Performance & Catch-up Speed Benchmark",
         [sys.executable, "scripts/run_benchmark.py"],
     )
 
-    # Compile Final Scorecard
     print_header("OFFICIAL ASSESSMENT COMPLETION CRITERIA SCORECARD")
 
     criteria = [

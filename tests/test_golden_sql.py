@@ -1,21 +1,12 @@
-"""
-tests/test_golden_sql.py: Golden SQL test verifying schema DDL and query generation
-for both SQLite and PostgreSQL dialects without requiring a live Postgres instance.
-"""
-
 import re
 from cloud.storage import CloudStorage
 
 
 def normalize_sql(sql: str) -> str:
-    """Normalizes whitespace and removes trailing semicolons for exact comparison."""
-    # Collapse multiple whitespace/newlines into single space
     s = re.sub(r"\s+", " ", sql.strip())
-    # Standardize casing around keywords if needed
     return s
 
 
-# Golden DDL without the redundant duplicate idx_cloud_samples_lookup index
 GOLDEN_SQLITE_DDL = normalize_sql("""
     CREATE TABLE IF NOT EXISTS cloud_sessions (
         session_id TEXT PRIMARY KEY,
@@ -114,19 +105,16 @@ GOLDEN_POSTGRES_DDL = normalize_sql("""
 
 
 def test_sqlite_schema_generation():
-    """Validates that generated SQLite DDL matches golden schema."""
     sqlite_ddl = CloudStorage.get_ddl(is_sqlite=True)
     assert normalize_sql(sqlite_ddl) == GOLDEN_SQLITE_DDL
 
 
 def test_postgres_schema_generation():
-    """Validates that generated PostgreSQL DDL matches golden schema without Postgres server."""
     postgres_ddl = CloudStorage.get_ddl(is_sqlite=False)
     assert normalize_sql(postgres_ddl) == GOLDEN_POSTGRES_DDL
 
 
 def test_query_placeholder_conversion():
-    """Validates that query parameter placeholder conversion produces expected SQL."""
     q_sqlite = "SELECT * FROM cloud_samples WHERE session_id = ? AND sensor = ?"
     q_pg = CloudStorage._format_sql(q_sqlite, is_sqlite=False)
     assert q_pg == "SELECT * FROM cloud_samples WHERE session_id = %s AND sensor = %s"
@@ -134,7 +122,6 @@ def test_query_placeholder_conversion():
     q_sqlite_keep = CloudStorage._format_sql(q_sqlite, is_sqlite=True)
     assert q_sqlite_keep == q_sqlite
 
-    # Test instance helper _q
     mock_sqlite = CloudStorage.__new__(CloudStorage)
     mock_sqlite.is_sqlite = True
     assert mock_sqlite._q(q_sqlite) == q_sqlite
@@ -145,7 +132,6 @@ def test_query_placeholder_conversion():
 
 
 def test_row_helper_access():
-    """Validates row value extraction helper across tuple, dict, and Row types."""
     tup = ("sess_1", 1, 100, 200)
     assert CloudStorage._row_val(tup, 0, "session_id") == "sess_1"
     assert CloudStorage._row_val(tup, 2, "val0") == 100

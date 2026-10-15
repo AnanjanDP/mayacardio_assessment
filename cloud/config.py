@@ -1,7 +1,3 @@
-"""
-cloud/config.py: Configuration and logging setup for FastAPI cloud service.
-"""
-
 import json
 import logging
 import os

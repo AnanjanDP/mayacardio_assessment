@@ -1,8 +1,3 @@
-"""
-Connectivity and Mode Manager for Never Lose a Heartbeat.
-Monitors cloud availability and enforces mode switching within 10 seconds.
-"""
-
 import logging
 import threading
 import time
@@ -14,7 +9,6 @@ logger = logging.getLogger(__name__)
 
 
 class ModeManager:
-    """Manages operating mode (online vs offline) based on true cloud reachability."""
 
     def __init__(
         self,
@@ -34,12 +28,10 @@ class ModeManager:
         self._listeners: List[Callable[[str], None]] = []
 
     def get_mode(self) -> str:
-        """Thread-safe accessor for current operating mode."""
         with self._lock:
             return self._mode
 
     def add_listener(self, callback: Callable[[str], None]):
-        """Registers a callback for mode changes."""
         self._listeners.append(callback)
 
     def _set_mode(self, new_mode: str):
@@ -55,7 +47,6 @@ class ModeManager:
                         logger.error("Error in mode change listener: %s", e)
 
     def check_now(self) -> str:
-        """Performs immediate health check probe and updates mode."""
         healthy = self.cloud_client.check_health()
         now = time.time()
         if healthy:
@@ -67,7 +58,6 @@ class ModeManager:
         return self.get_mode()
 
     def run_loop(self):
-        """Continuous background loop monitoring connectivity."""
         logger.info("Starting connectivity monitor loop...")
         while not self.stop_event.is_set():
             self.check_now()

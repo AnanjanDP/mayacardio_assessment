@@ -1,8 +1,3 @@
-"""
-cloud/storage.py: Storage engine supporting SQLite and PostgreSQL with unified DDL templates,
-query parameter translation, and memory-bounded streaming exports.
-"""
-
 import datetime
 import json
 import logging
@@ -79,7 +74,6 @@ class CloudStorage:
 
     @staticmethod
     def _row_val(row, idx: int, key: str = ""):
-        """Safely extracts a column value by index or column name across tuple, dict, and Row types."""
         if isinstance(row, tuple):
             return row[idx]
         if key and hasattr(row, "__getitem__"):
@@ -91,16 +85,13 @@ class CloudStorage:
 
     @staticmethod
     def _format_sql(sql: str, is_sqlite: bool) -> str:
-        """Converts standard ? parameter placeholders to %s for PostgreSQL."""
         return sql if is_sqlite else sql.replace("?", "%s")
 
     def _q(self, sql: str) -> str:
-        """Converts standard ? parameter placeholders to %s when using PostgreSQL."""
         return self._format_sql(sql, self.is_sqlite)
 
     @classmethod
     def get_ddl(cls, is_sqlite: bool) -> str:
-        """Generates dialect-accurate DDL from a single unified schema template."""
         types = {
             "t_sess_id": "TEXT" if is_sqlite else "VARCHAR(64)",
             "t_time": "TEXT" if is_sqlite else "TIMESTAMPTZ",
@@ -246,7 +237,6 @@ class CloudStorage:
         result: dict,
         conn=None,
     ):
-        """Persists a window processing result in cloud storage idempotently."""
         now_str = datetime.datetime.utcnow().isoformat()
         close_conn = False
         if conn is None:
@@ -308,7 +298,6 @@ class CloudStorage:
         row_mapper: Callable,
         chunk_size: int = 1000,
     ) -> Generator[str, None, None]:
-        """Generic memory-bounded streaming helper across database dialects."""
         formatted_sql = self._q(sql)
         conn = self.get_connection()
         try:

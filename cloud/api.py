@@ -1,8 +1,3 @@
-"""
-cloud/api.py: Production FastAPI cloud ingestion and processing service.
-Supports streaming NDJSON exports, idempotent batch ingestion, and PostgreSQL/SQLite backends.
-"""
-
 from typing import List, Optional
 
 import uvicorn
@@ -23,7 +18,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Initialize storage and worker with configured database URL
 storage = CloudStorage(config.db_url)
 worker = CloudWorker(storage)
 
@@ -68,17 +62,11 @@ class IngestBatchRequest(BaseModel):
 
 @app.get("/health", status_code=status.HTTP_200_OK)
 def health():
-    """Liveness probe for edge mode manager and cloud orchestrators."""
     return {"status": "ok", "service": "biosignal-cloud-api"}
 
 
 @app.post("/api/ingest", status_code=status.HTTP_200_OK)
 def ingest(batch: IngestBatchRequest, background_tasks: BackgroundTasks):
-    """
-    Ingests batch of samples and loss records idempotently.
-    Commits transaction before returning HTTP acknowledgment.
-    Triggers asynchronous online window processing in background.
-    """
     try:
         samples_raw = [s.model_dump() for s in batch.samples]
         losses_raw = [l.model_dump() for l in batch.loss_records]
@@ -89,7 +77,6 @@ def ingest(batch: IngestBatchRequest, background_tasks: BackgroundTasks):
             loss_records=losses_raw,
         )
 
-        # Trigger online window calculation safely in the background
         background_tasks.add_task(worker.process_pending_windows, batch.session_id)
 
         return {
@@ -105,7 +92,6 @@ def ingest(batch: IngestBatchRequest, background_tasks: BackgroundTasks):
 
 @app.get("/api/status", status_code=status.HTTP_200_OK)
 def status_endpoint():
-    """Returns cloud status summary including total sample counts and session indices."""
     try:
         return storage.get_status()
     except Exception as e:
@@ -115,10 +101,6 @@ def status_endpoint():
 
 @app.get("/api/export")
 def export_data(session: str = Query(..., description="Session ID to export")):
-    """
-    Streams cloud samples and loss records as formatted JSON Lines (NDJSON).
-    Uses memory-bounded database generators to stream unlimited dataset sizes without RAM exhaustion.
-    """
     def line_generator():
         for line in storage.export_session_samples(session):
             yield line + "\n"
@@ -134,9 +116,6 @@ def export_data(session: str = Query(..., description="Session ID to export")):
 
 @app.get("/api/results")
 def export_results(session: str = Query(..., description="Session ID to export results for")):
-    """
-    Streams online window processing results as formatted JSON Lines (NDJSON).
-    """
     def results_generator():
         for line in storage.export_results(session):
             yield line + "\n"

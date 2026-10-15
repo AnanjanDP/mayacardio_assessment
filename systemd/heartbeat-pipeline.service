@@ -15,7 +15,6 @@ RestartSec=2s
 KillMode=mixed
 TimeoutStopSec=10s
 
-# Hard resource safety constraints for ARM64 Raspberry Pi (<= 4 cores, <= 2GB RAM)
 MemoryMax=512M
 MemoryHigh=384M
 CPUQuota=150%

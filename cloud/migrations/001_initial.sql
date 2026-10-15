@@ -1,5 +1,3 @@
--- 001_initial.sql: PostgreSQL schema for Never Lose a Heartbeat Cloud Database
-
 CREATE TABLE IF NOT EXISTS cloud_sessions (
     session_id VARCHAR(64) PRIMARY KEY,
     started_at TIMESTAMPTZ NOT NULL,

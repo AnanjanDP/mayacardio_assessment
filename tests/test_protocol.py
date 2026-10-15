@@ -1,7 +1,3 @@
-"""
-Unit tests for protocol parser, framing, and CRC32 validation.
-"""
-
 import json
 import zlib
 from heartbeat.protocol import (
@@ -97,7 +93,7 @@ def test_parse_count_mismatch():
         "session_id": "sess1",
         "sensor": 1,
         "first_index": 0,
-        "count": 5,  # Mismatch: declares 5, gives 1
+        "count": 5,
         "lost": [],
         "session_end": False,
         "crc32": crc_str,
@@ -110,8 +106,7 @@ def test_parse_count_mismatch():
 
 
 def test_parse_channel_dimensions():
-    # Sensor 1 requires 3 channels
-    data = [[1, 2]]  # Only 2 channels
+    data = [[1, 2]]
     data_text = json.dumps(data, separators=(",", ":"))
     crc_str = calculate_crc32(data_text)
 

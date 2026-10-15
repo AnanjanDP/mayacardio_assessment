@@ -1,7 +1,3 @@
-"""
-Protocol parser, framing, and CRC32 validation for biosignal sensor mock stream.
-"""
-
 import json
 import re
 import zlib
@@ -30,11 +26,6 @@ class SensorResponse:
 
 
 def extract_data_substring(raw_text: str) -> Optional[str]:
-    """
-    Extracts the exact serialized data text from the opening '[' to the matching ']'
-    following the 'data' key in raw_text.
-    """
-    # Locate "data" key
     data_key_match = re.search(r'"data"\s*:', raw_text)
     if not data_key_match:
         return None
@@ -44,7 +35,6 @@ def extract_data_substring(raw_text: str) -> Optional[str]:
     if open_bracket_idx == -1:
         return None
 
-    # Track nested brackets
     depth = 0
     in_string = False
     escape = False
@@ -74,15 +64,11 @@ def extract_data_substring(raw_text: str) -> Optional[str]:
 
 
 def calculate_crc32(text: str) -> str:
-    """Calculates CRC-32 (zlib) as an 8-character lowercase hex string."""
     crc = zlib.crc32(text.encode("utf-8")) & 0xFFFFFFFF
     return f"{crc:08x}"
 
 
 def validate_crc32(raw_line: str, expected_crc32: str) -> bool:
-    """
-    Validates that the CRC32 of the exact serialized data text matches expected_crc32.
-    """
     data_substr = extract_data_substring(raw_line)
     if data_substr is None:
         return False
@@ -91,10 +77,6 @@ def validate_crc32(raw_line: str, expected_crc32: str) -> bool:
 
 
 def parse_response(raw_line: str) -> Tuple[Optional[SensorResponse], Optional[str]]:
-    """
-    Parses a newline-delimited JSON line into a validated SensorResponse.
-    Returns (response, error_message).
-    """
     clean_line = raw_line.strip()
     if not clean_line:
         return None, "empty_line"
@@ -107,7 +89,6 @@ def parse_response(raw_line: str) -> Tuple[Optional[SensorResponse], Optional[st
     if not isinstance(payload, dict):
         return None, "payload_not_object"
 
-    # Required fields
     required_keys = ["session_id", "sensor", "first_index", "count", "lost", "session_end", "crc32", "data"]
     for k in required_keys:
         if k not in payload:
@@ -144,7 +125,6 @@ def parse_response(raw_line: str) -> Tuple[Optional[SensorResponse], Optional[st
     if len(data) != count:
         return None, f"count_mismatch: declared {count}, actual {len(data)}"
 
-    # Validate channel dimensions
     expected_channels = 3 if sensor == 1 else 2
     for idx_offset, sample in enumerate(data):
         if not isinstance(sample, list) or len(sample) != expected_channels:
@@ -153,11 +133,9 @@ def parse_response(raw_line: str) -> Tuple[Optional[SensorResponse], Optional[st
             if not isinstance(val, int):
                 return None, f"sample_value_not_int at offset {idx_offset}"
 
-    # CRC32 validation
     if not validate_crc32(clean_line, crc32_str):
         return None, "corrupt_crc32_mismatch"
 
-    # Parse loss items
     lost_raw = payload["lost"]
     if not isinstance(lost_raw, list):
         return None, "invalid_lost_not_list"

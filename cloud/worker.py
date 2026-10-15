@@ -1,8 +1,3 @@
-"""
-cloud/worker.py: Production cloud background worker for online biosignal window processing.
-Handles concurrent batch triggers safely with session-level debounce and serialization.
-"""
-
 import logging
 import threading
 from typing import Dict, Optional, Set
@@ -14,10 +9,6 @@ logger = logging.getLogger(__name__)
 
 
 class CloudWorker:
-    """
-    Processes streaming biosignal windows in the cloud with mode='online'.
-    Guarantees thread-safety and avoids database locking during concurrent batch ingestion.
-    """
 
     def __init__(self, storage: CloudStorage):
         self.storage = storage
@@ -32,11 +23,6 @@ class CloudWorker:
             return self._session_locks[session_id]
 
     def process_pending_windows(self, session_id: Optional[str] = None) -> int:
-        """
-        Thread-safe entrypoint for online window processing.
-        If a processing run is already active for this session, marks a rerun flag
-        and returns immediately, coalescing rapid batch arrivals into a single worker pass.
-        """
         if not session_id:
             sessions = self.storage.list_session_ids()
             total = 0
@@ -45,7 +31,6 @@ class CloudWorker:
             return total
 
         lock = self._get_session_lock(session_id)
-        # Attempt non-blocking lock acquisition to prevent worker thread pileups
         if not lock.acquire(blocking=False):
             with self._meta_lock:
                 self._pending_reruns[session_id] = True
@@ -64,7 +49,6 @@ class CloudWorker:
                 with self._meta_lock:
                     rerun_needed = self._pending_reruns.get(session_id, False)
 
-                # If no new triggers arrived or no more complete windows exist, terminate pass
                 if not rerun_needed or processed_in_pass == 0:
                     break
 
@@ -73,12 +57,10 @@ class CloudWorker:
             lock.release()
 
     def _process_session_windows(self, session_id: str) -> int:
-        """Internal processor executing a single sweep over unprocessed windows for a session."""
         conn = self.storage.get_connection()
         try:
             cur = conn.cursor()
 
-            # Determine maximum sample index available
             q_max = self.storage._q("SELECT MAX(sample_index) FROM cloud_samples WHERE session_id = ?")
             cur.execute(q_max, (session_id,))
             max_row = cur.fetchone()
@@ -88,7 +70,6 @@ class CloudWorker:
             max_idx = max_row[0]
             max_window = (max_idx + 1) // WINDOW_SIZE
 
-            # Fetch set of already processed online windows
             q_proc = self.storage._q("SELECT window_index FROM cloud_processed_windows WHERE session_id = ? AND mode = 'online'")
             cur.execute(q_proc, (session_id,))
             processed: Set[int] = {self.storage._row_val(r, 0, "window_index") for r in cur.fetchall()}
@@ -112,7 +93,6 @@ class CloudWorker:
                 w_start = 400 * w
                 w_end = 400 * w + 399
 
-                # 1. Fetch sensor 1 samples in window
                 cur.execute(q_s1, (session_id, w_start, w_end))
                 s1_samples = {
                     self.storage._row_val(r, 0, "sample_index"): [
@@ -123,7 +103,6 @@ class CloudWorker:
                     for r in cur.fetchall()
                 }
 
-                # 2. Fetch sensor 2 samples in window
                 cur.execute(q_s2, (session_id, w_start, w_end))
                 s2_samples = {
                     self.storage._row_val(r, 0, "sample_index"): [
@@ -133,7 +112,6 @@ class CloudWorker:
                     for r in cur.fetchall()
                 }
 
-                # 3. Fetch preceding context for ECG heart rate calculation if w >= 4
                 s1_ch2_history = {}
                 if w >= 4:
                     hr_start = 400 * (w - 4) - 800
@@ -144,7 +122,6 @@ class CloudWorker:
                         for r in cur.fetchall()
                     }
 
-                # 4. Process using shared deterministic pure mathematical engine
                 try:
                     res = process_window(
                         window_idx=w,
@@ -157,7 +134,6 @@ class CloudWorker:
                     logger.error("Error computing window %d for session %s: %s", w, session_id, e)
                     continue
 
-                # 5. Persist online processing result transactionally via storage engine
                 self.storage.persist_result(
                     session_id=session_id,
                     window_index=w,
@@ -170,4 +146,3 @@ class CloudWorker:
             return processed_count
         finally:
             conn.close()
-

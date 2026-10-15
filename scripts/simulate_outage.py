@@ -1,13 +1,3 @@
-"""
-simulate_outage.py: End-to-end integration simulation of network outage and recovery.
-Demonstrates:
-1. Online mode streaming.
-2. Network cut -> automatic switch to offline within 10s.
-3. Offline collection & local persistence with zero sample loss.
-4. Network restored -> automatic switch to online within 10s.
-5. Backlog synchronization catching up to 0 backlog.
-"""
-
 import os
 import shutil
 import subprocess
@@ -38,7 +28,6 @@ def main():
     env["CLOUD_PORT"] = str(cloud_port)
     env["PIPELINE_POLL_INTERVAL"] = "0.02"
 
-    # 1. Start mock server
     print("\n[Step 1] Starting biosignal-mock server...")
     mock_proc = subprocess.Popen(
         [sys.executable, "-m", "mock.biosignal_mock", "--mode", "ramp", "--port", str(mock_port), "--fast-clock", "5.0"],
@@ -48,7 +37,6 @@ def main():
     )
     time.sleep(1.0)
 
-    # 2. Start cloud API
     print("[Step 2] Starting Cloud API server...")
     cloud_proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "cloud.api:app", "--port", str(cloud_port), "--host", "127.0.0.1"],
@@ -58,7 +46,6 @@ def main():
     )
     time.sleep(1.5)
 
-    # 3. Start edge pipeline
     print("[Step 3] Starting edge pipeline...")
     pipe_proc = subprocess.Popen(
         [sys.executable, "-m", "heartbeat.cli", "run"],
@@ -68,19 +55,16 @@ def main():
     )
 
     try:
-        # Check initial online state
         print("Waiting for initial collection and cloud sync...")
         time.sleep(3.0)
         status_out = subprocess.check_output([sys.executable, "-m", "heartbeat.cli", "status"], env=env).decode().strip()
         print(f"Status before outage: {status_out}")
         assert '"mode": "online"' in status_out
 
-        # 4. Simulate network outage by killing Cloud API
         print("\n[Step 4] Cutting network to cloud (terminating Cloud API)...")
         cloud_proc.terminate()
         cloud_proc.wait(timeout=3.0)
 
-        # Measure mode switch time to offline (Target <= 10s)
         t_cut = time.time()
         offline_detected = False
         while time.time() - t_cut < 10.0:
@@ -94,13 +78,11 @@ def main():
 
         assert offline_detected, "Failed to switch to offline mode within 10 seconds!"
 
-        # Let it collect offline for a few seconds
         print("Collecting offline data...")
         time.sleep(3.0)
         status_offline = subprocess.check_output([sys.executable, "-m", "heartbeat.cli", "status"], env=env).decode().strip()
         print(f"Offline status: {status_offline}")
 
-        # 5. Restore network (restart Cloud API)
         print("\n[Step 5] Restoring network (restarting Cloud API)...")
         cloud_proc = subprocess.Popen(
             [sys.executable, "-m", "uvicorn", "cloud.api:app", "--port", str(cloud_port), "--host", "127.0.0.1"],
@@ -122,7 +104,6 @@ def main():
 
         assert online_detected, "Failed to switch to online mode within 10 seconds!"
 
-        # 6. Stop mock to stop new sample generation, then verify backlog drains to 0
         print("\n[Step 6] Stopping mock and waiting for backlog synchronization to 0...")
         mock_proc.terminate()
         mock_proc.wait(timeout=2.0)

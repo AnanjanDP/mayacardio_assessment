@@ -1,12 +1,3 @@
-"""
-run_benchmark.py: Comprehensive performance and recovery benchmark for Never Lose a Heartbeat.
-Measures:
-1. Edge collection & SQLite persistence throughput (samples/sec).
-2. Synchronization throughput (samples/sec) and time to recover from a 2-hour outage (5.76M samples).
-3. CPU utilization, resident memory (RSS MB), and disk write metrics.
-4. Online processing latency.
-"""
-
 import os
 import shutil
 import sys
@@ -24,7 +15,6 @@ from cloud.storage import CloudStorage
 
 
 def benchmark_storage_insertion(n_samples: int = 100_000):
-    """Measures raw SQLite batch insertion throughput."""
     temp_dir = tempfile.mkdtemp(prefix="bm_storage_")
     db_path = os.path.join(temp_dir, "bench.db")
     storage = DeviceStorage(db_path=db_path, synchronous="NORMAL")
@@ -51,10 +41,6 @@ def benchmark_storage_insertion(n_samples: int = 100_000):
 
 
 def benchmark_outage_recovery(n_samples: int = 100_000):
-    """
-    Simulates recovery from an outage by loading a backlog and measuring sync rate to cloud.
-    Extrapolates recovery time for full 2-hour outage (5,760,000 samples).
-    """
     print(f"\n--- 2. Outage Recovery Synchronization Benchmark ({n_samples:,} sample test) ---")
     temp_dir = tempfile.mkdtemp(prefix="bm_sync_")
     dev_db = os.path.join(temp_dir, "device.db")
@@ -63,7 +49,6 @@ def benchmark_outage_recovery(n_samples: int = 100_000):
     dev_storage = DeviceStorage(db_path=dev_db, synchronous="NORMAL")
     c_storage = CloudStorage(db_url=f"sqlite:///{cloud_db}")
 
-    # Populate device backlog
     print(f"Populating edge backlog of {n_samples:,} samples...")
     batch_size = 400
     for b in range(n_samples // batch_size):
@@ -71,7 +56,6 @@ def benchmark_outage_recovery(n_samples: int = 100_000):
         s1_data = [[100, 200, 300] for _ in range(batch_size)]
         dev_storage.persist_batch("outage_sess", 1, idx, s1_data, [])
 
-    # Synchronize using in-memory direct mock client for pure throughput measurement
     class DirectCloudClient:
         def check_health(self):
             return True
@@ -96,7 +80,7 @@ def benchmark_outage_recovery(n_samples: int = 100_000):
     elapsed = time.time() - t0
     rate = synced / elapsed
 
-    two_hour_samples = 2 * 3600 * 800  # 5,760,000 samples
+    two_hour_samples = 2 * 3600 * 800
     est_recovery_seconds = two_hour_samples / rate
     est_recovery_minutes = est_recovery_seconds / 60.0
 
@@ -109,7 +93,6 @@ def benchmark_outage_recovery(n_samples: int = 100_000):
 
 
 def benchmark_resource_footprint():
-    """Measures memory and CPU footprint of current python process."""
     print("\n--- 3. Resource Footprint Benchmark ---")
     proc = psutil.Process(os.getpid())
     mem_info = proc.memory_info()

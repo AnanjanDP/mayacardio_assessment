@@ -1,7 +1,3 @@
-"""
-Pytest configuration and common fixtures.
-"""
-
 import os
 import shutil
 import tempfile

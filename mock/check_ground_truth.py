@@ -1,8 +1,3 @@
-"""
-check_ground_truth: Independent validation tool for pipeline exports and results.
-Compares device/cloud exports and processing results against mathematical ground truth.
-"""
-
 import argparse
 import json
 import sys
@@ -20,10 +15,6 @@ def ramp_sensor2(i: int) -> List[int]:
 
 
 def check_export(export_file: str, mode: str = "ramp") -> Tuple[bool, dict]:
-    """
-    Validates exported sample and loss records from device or cloud.
-    Returns (success, summary_dict).
-    """
     samples_s1: Dict[int, List[int]] = {}
     samples_s2: Dict[int, List[int]] = {}
     loss_records: List[dict] = []
@@ -44,7 +35,6 @@ def check_export(export_file: str, mode: str = "ramp") -> Tuple[bool, dict]:
                 return False, {"error": f"JSON parse error at line {line_num}"}
 
             if "values" in rec:
-                # Sample record: {"sensor": 1, "index": 120000, "values": [720, 1200, 1560]}
                 sensor = rec["sensor"]
                 idx = rec["index"]
                 vals = rec["values"]
@@ -55,19 +45,16 @@ def check_export(export_file: str, mode: str = "ramp") -> Tuple[bool, dict]:
                 else:
                     target_dict[idx] = vals
 
-                # If ramp mode, verify value integrity
                 if mode == "ramp":
                     expected = ramp_sensor1(idx) if sensor == 1 else ramp_sensor2(idx)
                     if vals != expected:
                         value_mismatches.append((sensor, idx))
             elif "from_index" in rec:
-                # Loss record: {"sensor": 2, "from_index": 4000, "to_index": 4399, "reason": "buffer_overflow"}
                 loss_records.append(rec)
             else:
                 print(f"Unknown record type at line {line_num}: {line}")
                 return False, {"error": f"Unknown record type at line {line_num}"}
 
-    # Verify no overlap between present samples and loss records
     loss_overlaps = []
     lost_indices_s1: Set[int] = set()
     lost_indices_s2: Set[int] = set()
@@ -84,7 +71,6 @@ def check_export(export_file: str, mode: str = "ramp") -> Tuple[bool, dict]:
                 if i in present_dict:
                     loss_overlaps.append((s, i))
 
-    # Detect unaccounted gaps
     unaccounted_gaps_s1 = []
     unaccounted_gaps_s2 = []
     if samples_s1:
@@ -122,7 +108,6 @@ def check_export(export_file: str, mode: str = "ramp") -> Tuple[bool, dict]:
 
 
 def check_results(results_file: str, raw_export_file: Optional[str] = None) -> Tuple[bool, dict]:
-    """Validates processing results against requirements."""
     results = []
     with open(results_file, "r", encoding="utf-8") as f:
         for line in f:
@@ -138,7 +123,6 @@ def check_results(results_file: str, raw_export_file: Optional[str] = None) -> T
             invalid_windows.append({"window": w, "reason": f"invalid mode {mode}"})
             continue
 
-        # Check required fields
         for field in ("missing_1", "missing_2", "complete", "channels", "magnitude", "heart_rate", "mode"):
             if field not in r:
                 invalid_windows.append({"window": w, "reason": f"missing field {field}"})

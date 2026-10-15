@@ -14,7 +14,6 @@ RestartSec=3s
 KillMode=mixed
 TimeoutStopSec=10s
 
-# Resource safety constraints for Raspberry Pi 4
 LimitNOFILE=65536
 MemoryMax=256M
 

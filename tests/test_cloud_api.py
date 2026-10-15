@@ -1,7 +1,3 @@
-"""
-Unit tests for FastAPI cloud ingestion API, status, and export endpoints.
-"""
-
 import json
 import pytest
 from fastapi.testclient import TestClient
@@ -42,16 +38,13 @@ def test_ingest_batch_idempotency(client):
         ],
     }
 
-    # First ingest
     r1 = client.post("/api/ingest", json=payload)
     assert r1.status_code == 200
     assert r1.json()["inserted_samples"] == 2
 
-    # Second ingest (retry with same batch)
     r2 = client.post("/api/ingest", json=payload)
     assert r2.status_code == 200
 
-    # Verify status
     r_stat = client.get("/api/status")
     assert r_stat.status_code == 200
     stat_data = r_stat.json()
@@ -59,7 +52,6 @@ def test_ingest_batch_idempotency(client):
 
 
 def test_ingest_short_values_handled_safely(client):
-    """Verifies that dummy or short sample values (e.g. from Swagger default) don't cause a 500 error."""
     payload = {
         "session_id": "dummy_sess",
         "samples": [
@@ -100,10 +92,8 @@ def test_export_endpoints(client):
 
 
 def test_concurrent_worker_processing(client):
-    """Verifies that concurrent ingest batches trigger background window processing safely."""
     session_id = "concurrent_sess_01"
 
-    # Ingest 2 full windows of data (800 samples each sensor)
     def send_batch(batch_idx):
         offset = batch_idx * 200
         samples = []
@@ -124,19 +114,15 @@ def test_concurrent_worker_processing(client):
 
 
 def test_results_streaming_export(client):
-    """Verifies that /api/results streams results as valid NDJSON."""
     from cloud.api import storage, worker
     session_id = "results_export_sess"
 
-    # Populate 1 window
     s1_samples = [{"sensor": 1, "index": i, "values": [100, 200, 300]} for i in range(400)]
     s2_samples = [{"sensor": 2, "index": i, "values": [400000, 150000]} for i in range(400)]
     storage.ingest_batch(session_id, s1_samples + s2_samples, [])
 
-    # Process windows
     worker.process_pending_windows(session_id)
 
-    # Stream results
     resp = client.get(f"/api/results?session={session_id}")
     assert resp.status_code == 200
     assert "application/x-ndjson" in resp.headers["content-type"]
@@ -146,4 +132,3 @@ def test_results_streaming_export(client):
     assert res["window"] == 0
     assert res["mode"] == "online"
     assert res["complete"] is True
-

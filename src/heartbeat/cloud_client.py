@@ -1,7 +1,3 @@
-"""
-HTTP client for Never Lose a Heartbeat cloud API.
-"""
-
 import logging
 from typing import Generator, List, Optional
 
@@ -11,7 +7,6 @@ logger = logging.getLogger(__name__)
 
 
 class CloudClient:
-    """Communicates with the cloud ingestion service."""
 
     def __init__(self, base_url: str = "http://127.0.0.1:8000", timeout: float = 4.0):
         self.base_url = base_url.rstrip("/")
@@ -19,7 +14,6 @@ class CloudClient:
         self.session = requests.Session()
 
     def check_health(self) -> bool:
-        """Probes the cloud /health endpoint. Returns True if healthy."""
         try:
             resp = self.session.get(f"{self.base_url}/health", timeout=self.timeout)
             return resp.status_code == 200
@@ -33,10 +27,6 @@ class CloudClient:
         samples: List[dict],
         loss_records: List[dict],
     ) -> bool:
-        """
-        Uploads batch of samples and loss records to /api/ingest.
-        Returns True only upon receiving verified 200 OK acknowledgment.
-        """
         payload = {
             "session_id": session_id,
             "samples": samples,
@@ -58,7 +48,6 @@ class CloudClient:
             return False
 
     def get_cloud_status(self) -> Optional[dict]:
-        """Fetches status summary from cloud."""
         try:
             resp = self.session.get(f"{self.base_url}/api/status", timeout=self.timeout)
             if resp.status_code == 200:
@@ -70,7 +59,6 @@ class CloudClient:
 
 
     def export_cloud_data(self, session_id: str) -> Generator[str, None, None]:
-        """Streams cloud export JSON Lines."""
         resp = self.session.get(
             f"{self.base_url}/api/export",
             params={"session": session_id},
@@ -83,7 +71,6 @@ class CloudClient:
                 yield line
 
     def export_cloud_results(self, session_id: str) -> Generator[str, None, None]:
-        """Streams cloud results JSON Lines."""
         resp = self.session.get(
             f"{self.base_url}/api/results",
             params={"session": session_id},

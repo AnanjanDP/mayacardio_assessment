@@ -1,7 +1,3 @@
-"""
-Unit tests for ModeManager and online/offline switching SLAs.
-"""
-
 import time
 from heartbeat.connectivity import ModeManager
 
@@ -18,17 +14,14 @@ def test_mode_switch_to_offline_and_online():
     mock_client = MockCloudClient(initially_healthy=True)
     mode_mgr = ModeManager(cloud_client=mock_client, failure_threshold_seconds=1.0)
 
-    # Initial probe -> online
     mode = mode_mgr.check_now()
     assert mode == "online"
 
-    # Simulate cloud failure
     mock_client.healthy = False
     time.sleep(1.1)
     mode = mode_mgr.check_now()
     assert mode == "offline"
 
-    # Simulate cloud recovery
     mock_client.healthy = True
     mode = mode_mgr.check_now()
     assert mode == "online"
@@ -41,12 +34,12 @@ def test_mode_switch_listener_callback():
     recorded_transitions = []
     mode_mgr.add_listener(lambda new_m: recorded_transitions.append(new_m))
 
-    mode_mgr.check_now()  # sets offline
+    mode_mgr.check_now()
     mock_client.healthy = True
-    mode_mgr.check_now()  # transitions to online
+    mode_mgr.check_now()
     mock_client.healthy = False
     time.sleep(0.6)
-    mode_mgr.check_now()  # transitions to offline
+    mode_mgr.check_now()
 
     assert "online" in recorded_transitions
     assert "offline" in recorded_transitions
