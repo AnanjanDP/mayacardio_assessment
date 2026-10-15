@@ -5,7 +5,6 @@ Compares device/cloud exports and processing results against mathematical ground
 
 import argparse
 import json
-import math
 import sys
 from typing import Dict, List, Optional, Set, Tuple
 

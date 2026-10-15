@@ -101,7 +101,6 @@ def test_export_endpoints(client):
 
 def test_concurrent_worker_processing(client):
     """Verifies that concurrent ingest batches trigger background window processing safely."""
-    import concurrent.futures
     session_id = "concurrent_sess_01"
 
     # Ingest 2 full windows of data (800 samples each sensor)
