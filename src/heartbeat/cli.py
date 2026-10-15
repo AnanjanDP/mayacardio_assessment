@@ -7,7 +7,6 @@ Outputs strict JSON lines without corrupting diagnostic text.
 import argparse
 import json
 import logging
-import os
 import sys
 import threading
 import time
