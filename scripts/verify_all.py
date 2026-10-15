@@ -8,7 +8,6 @@ Validates all 8 Completion Criteria and scoring areas from the Never Lose a Hear
 - Criterion 8  (10 pts): Design note, code quality, and resource envelope (ARM64 <= 4 cores, <= 2GB RAM)
 """
 
-import os
 import subprocess
 import sys
 import time
