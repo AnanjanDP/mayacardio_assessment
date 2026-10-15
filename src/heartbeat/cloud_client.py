@@ -2,7 +2,6 @@
 HTTP client for Never Lose a Heartbeat cloud API.
 """
 
-import json
 import logging
 from typing import Generator, List, Optional
 
@@ -65,8 +64,10 @@ class CloudClient:
             if resp.status_code == 200:
                 return resp.json()
             return None
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to fetch cloud status: %s", e)
             return None
+
 
     def export_cloud_data(self, session_id: str) -> Generator[str, None, None]:
         """Streams cloud export JSON Lines."""
