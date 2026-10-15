@@ -17,9 +17,6 @@ CREATE TABLE IF NOT EXISTS cloud_samples (
     PRIMARY KEY (session_id, sensor, sample_index)
 );
 
-CREATE INDEX IF NOT EXISTS idx_cloud_samples_lookup 
-ON cloud_samples (session_id, sensor, sample_index);
-
 CREATE TABLE IF NOT EXISTS cloud_loss_records (
     id SERIAL PRIMARY KEY,
     session_id VARCHAR(64) NOT NULL,
