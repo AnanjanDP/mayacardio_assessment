@@ -6,8 +6,7 @@ Pure deterministic logic shared between edge offline processor and cloud online 
 
 import logging
 import math
-import time
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from heartbeat.peaks import calculate_heart_rate
 from heartbeat.storage import DeviceStorage
