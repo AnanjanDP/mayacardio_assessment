@@ -4,7 +4,7 @@ Distinguishes between mock-reported losses, detected gaps, session restarts, and
 """
 
 import logging
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from heartbeat.protocol import LossItem
 from heartbeat.storage import DeviceStorage
@@ -107,13 +107,6 @@ class LossTracker:
             first_index,
             end_idx,
         )
-        loss_dict = {
-            "session_id": session_id,
-            "sensor": sensor,
-            "from_index": first_index,
-            "to_index": end_idx,
-            "reason": "disk_full",
-        }
         try:
             self.storage.record_loss(
                 session_id=session_id,
@@ -124,7 +117,14 @@ class LossTracker:
             )
         except Exception as e:
             logger.warning("Could not persist disk_full record immediately, buffering in memory: %s", e)
-            self._pending_disk_losses.append(loss_dict)
+            self._pending_disk_losses.append({
+                "session_id": session_id,
+                "sensor": sensor,
+                "from_index": first_index,
+                "to_index": end_idx,
+                "reason": "disk_full",
+            })
+
 
     def flush_pending_losses(self):
         """Attempts to flush buffered disk-full losses once disk pressure subsides."""
