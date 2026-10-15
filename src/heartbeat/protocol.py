@@ -3,13 +3,10 @@ Protocol parser, framing, and CRC32 validation for biosignal sensor mock stream.
 """
 
 import json
-import logging
 import re
 import zlib
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
-
-logger = logging.getLogger(__name__)
+from typing import List, Optional, Tuple
 
 
 @dataclass
