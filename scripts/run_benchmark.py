@@ -17,13 +17,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
 import psutil
-from heartbeat.cloud_client import CloudClient
 from heartbeat.connectivity import ModeManager
-from heartbeat.processor import LocalProcessor
 from heartbeat.storage import DeviceStorage
 from heartbeat.uploader import BacklogUploader
 from cloud.storage import CloudStorage
-from cloud.worker import CloudWorker
 
 
 def benchmark_storage_insertion(n_samples: int = 100_000):
