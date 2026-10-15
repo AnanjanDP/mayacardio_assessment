@@ -110,9 +110,6 @@ def cmd_export(args, config: PipelineConfig):
         except Exception as e:
             sys.stderr.write(f"Error exporting from cloud: {e}\n")
             sys.exit(1)
-    else:
-        sys.stderr.write(f"Invalid --from source: {from_source}\n")
-        sys.exit(1)
 
 
 def cmd_results(args, config: PipelineConfig):
@@ -132,7 +129,7 @@ def cmd_results(args, config: PipelineConfig):
             has_cloud_results = True
             _emit(results)
     except Exception:
-        pass
+        logging.getLogger(__name__).debug("cloud results unavailable", exc_info=True)
 
     if not has_cloud_results:
         # Fallback to device storage offline results (compute on demand if needed)
@@ -233,18 +230,15 @@ def main():
 
     args = parser.parse_args()
 
-    if args.command == "status":
-        cmd_status(args, config)
-    elif args.command == "sessions":
-        cmd_sessions(args, config)
-    elif args.command == "export":
-        cmd_export(args, config)
-    elif args.command == "results":
-        cmd_results(args, config)
-    elif args.command == "run":
-        cmd_run(args, config)
-    elif args.command == "sync":
-        cmd_sync(args, config)
+    handlers = {
+        "status": cmd_status,
+        "sessions": cmd_sessions,
+        "export": cmd_export,
+        "results": cmd_results,
+        "run": cmd_run,
+        "sync": cmd_sync,
+    }
+    handlers[args.command](args, config)
 
 
 if __name__ == "__main__":
