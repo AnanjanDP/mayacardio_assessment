@@ -1,0 +1,29 @@
+[Unit]
+Description=Never Lose a Heartbeat - Edge Biosignal Pipeline
+After=network.target biosignal-mock.service
+Wants=biosignal-mock.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/mayacardio
+Environment=PYTHONPATH=src:.
+EnvironmentFile=-/home/pi/mayacardio/.env
+ExecStart=/usr/bin/python3 -m heartbeat.cli run
+Restart=always
+RestartSec=2s
+KillMode=mixed
+TimeoutStopSec=10s
+
+# Hard resource safety constraints for ARM64 Raspberry Pi (<= 4 cores, <= 2GB RAM)
+MemoryMax=512M
+MemoryHigh=384M
+CPUQuota=150%
+LimitNOFILE=65536
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=heartbeat-pipeline
+
+[Install]
+WantedBy=multi-user.target

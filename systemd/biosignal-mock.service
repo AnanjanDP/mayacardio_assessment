@@ -1,0 +1,26 @@
+[Unit]
+Description=Never Lose a Heartbeat - Biosignal Sensor Mock Server
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/mayacardio
+Environment=PYTHONPATH=src:.
+ExecStart=/usr/bin/python3 -m mock.biosignal_mock --mode signal --seed 7 --duration 86400 --port 7100
+Restart=always
+RestartSec=3s
+KillMode=mixed
+TimeoutStopSec=10s
+
+# Resource safety constraints for Raspberry Pi 4
+LimitNOFILE=65536
+MemoryMax=256M
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=biosignal-mock
+
+[Install]
+WantedBy=multi-user.target
