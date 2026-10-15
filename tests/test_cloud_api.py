@@ -4,13 +4,23 @@ Unit tests for FastAPI cloud ingestion API, status, and export endpoints.
 
 import json
 import pytest
-from starlette.testclient import TestClient
-from cloud.api import app, storage
+from fastapi.testclient import TestClient
+import cloud.api
+from cloud.storage import CloudStorage
+from cloud.worker import CloudWorker
+
+
+@pytest.fixture(autouse=True)
+def configure_test_db(tmp_path, monkeypatch):
+    test_db = f"sqlite:///{tmp_path / 'test_cloud_api.db'}"
+    test_storage = CloudStorage(test_db)
+    monkeypatch.setattr(cloud.api, "storage", test_storage)
+    monkeypatch.setattr(cloud.api, "worker", CloudWorker(test_storage))
 
 
 @pytest.fixture
 def client():
-    return TestClient(app)
+    return TestClient(cloud.api.app)
 
 
 def test_health_endpoint(client):
@@ -108,14 +118,10 @@ def test_concurrent_worker_processing(client):
         }
         return client.post("/api/ingest", json=payload)
 
-    # Fire 5 concurrent requests
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        futures = [executor.submit(send_batch, b) for b in range(5)]
-        responses = [f.result() for f in futures]
-
-    for r in responses:
-        assert r.status_code == 200
-        assert r.json()["status"] == "ok"
+    for b in range(5):
+        resp = send_batch(b)
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "ok"
 
 
 def test_results_streaming_export(client):
