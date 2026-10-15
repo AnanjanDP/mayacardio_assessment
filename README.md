@@ -1,6 +1,6 @@
 # Never Lose a Heartbeat
 
-Production-grade, fault-tolerant biosignal data ingestion, edge persistence, and cloud synchronization pipeline designed for ARM64 edge medical devices operating in hostile network environments.
+Fault-tolerant biosignal data ingestion, edge persistence, and cloud synchronization pipeline designed for ARM64 edge medical devices operating in hostile network environments.
 
 ---
 
@@ -87,11 +87,3 @@ python -m mock.check_ground_truth --export export.ndjson --results results.ndjso
 
 ---
 
-## Production Deployment
-
-- **Systemd (Raspberry Pi):** Pre-configured unit files with hard memory limits (`MemoryMax=512M`, `LimitNOFILE=65536`) located in [`systemd/`](systemd/).
-- **Cloud Container (Docker):** Production multi-stage container configured in [`Dockerfile`](Dockerfile).
-- **Environment Configuration:** Set parameters via `.env` or system environment variables:
-  - `PIPELINE_DB_PATH`: Edge SQLite database path (default: `data/device.db`).
-  - `PIPELINE_CLOUD_URL`: Cloud API base URL (default: `http://127.0.0.1:8000`).
-  - `CLOUD_DB_URL`: Production PostgreSQL or local SQLite URL (e.g., `postgresql://...`).
